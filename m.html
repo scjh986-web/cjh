@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音乐播放器选择</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f0f7ff 0%, #e6f0ff 60%, #d9e9ff 100%);
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            opacity: 0;
+            transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+        body.loaded {
+            opacity: 1;
+        }
+        .page-title {
+            font-size: 2.5rem;
+            color: #1e40af;
+            font-weight: 600;
+            margin-bottom: 3.5rem;
+            letter-spacing: 0.12em;
+            position: relative;
+            text-align: center;
+            padding-bottom: 12px;
+        }
+        .page-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+            border-radius: 2px;
+        }
+        .content-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            flex-grow: 1;
+            width: 100%;
+            max-width: 850px;
+        }
+        .player-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2.5rem;
+            width: 100%;
+        }
+        .player-card {
+            background-color: rgba(255, 255, 255, 0.98);
+            padding: 3rem 1.8rem;
+            border-radius: 20px;
+            box-shadow: 0 8px 24px rgba(71, 147, 255, 0.12);
+            border: 1px solid rgba(114, 183, 255, 0.2);
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+            text-decoration: none;
+            position: relative;
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: cardFadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        .player-card:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+        .player-card:nth-child(2) {
+            animation-delay: 0.3s;
+        }
+        @keyframes cardFadeIn {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .player-card:hover {
+            box-shadow: 0 12px 32px rgba(71, 147, 255, 0.18);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+        .player-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(59, 130, 246, 0.03);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 1;
+        }
+        .player-card:hover::before {
+            opacity: 1;
+        }
+        .player-card:active {
+            transform: translateY(2px);
+            box-shadow: 0 6px 18px rgba(71, 147, 255, 0.1);
+        }
+        .player-card.active {
+            border-color: #3b82f6;
+            background-color: rgba(59, 130, 246, 0.02);
+        }
+        .player-card.active::after {
+            content: '✓ 上次选择';
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 0.8rem;
+            color: #3b82f6;
+            background-color: rgba(59, 130, 246, 0.1);
+            padding: 2px 8px;
+            border-radius: 12px;
+            z-index: 2;
+        }
+        .card-icon {
+            font-size: 3.8rem;
+            color: #3b82f6;
+            margin-bottom: 1.2rem;
+            position: relative;
+            z-index: 2;
+        }
+        .card-title {
+            font-size: 1.7rem;
+            color: #1e40af;
+            margin-bottom: 0.8rem;
+            font-weight: 600;
+            position: relative;
+            z-index: 2;
+        }
+        .card-desc {
+            font-size: 0.95rem;
+            color: #4a6fa5;
+            line-height: 1.6;
+            padding: 0 10px;
+            position: relative;
+            z-index: 2;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+        .player-card.empty .card-icon {
+            color: #94a3b8;
+        }
+        .player-card.empty .card-title,
+        .player-card.empty .card-desc {
+            color: #94a3b8;
+        }
+        .player-card.empty::after {
+            content: '暂未开放';
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.9rem;
+            color: #94a3b8;
+            z-index: 2;
+        }
+        .back-home {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 11px 22px;
+            background-color: #3b82f6;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 1.05rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            z-index: 10;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+        }
+        .back-home:hover {
+            background-color: #2563eb;
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.25);
+        }
+        @media (max-width: 768px) {
+            body {
+                padding: 30px 15px;
+            }
+            .page-title {
+                font-size: 1.9rem;
+                margin-bottom: 2.2rem;
+                letter-spacing: 0.1em;
+            }
+            .page-title::after {
+                width: 80px;
+            }
+            .content-wrapper {
+                justify-content: flex-start;
+                padding-top: 10px;
+            }
+            .player-grid {
+                grid-template-columns: 1fr;
+                gap: 1.8rem;
+            }
+            .player-card {
+                padding: 2.2rem 1.2rem;
+            }
+            .card-icon {
+                font-size: 3.2rem;
+                margin-bottom: 1rem;
+            }
+            .card-title {
+                font-size: 1.5rem;
+            }
+            .card-desc {
+                font-size: 0.9rem;
+            }
+            .back-home {
+                bottom: 30px;
+                padding: 10px 20px;
+                font-size: 1rem;
+            }
+        }
+        @media (max-width: 375px) {
+            .page-title {
+                font-size: 1.7rem;
+            }
+            .card-icon {
+                font-size: 2.8rem;
+            }
+            .card-title {
+                font-size: 1.35rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1 class="page-title">音乐播放器选择</h1>
+    <div class="content-wrapper">
+        <div class="player-grid">
+            <!-- 板块1：本地音乐 - 跳转地址：b.html -->
+            <a href="n.html" class="player-card" id="localPlayerCard">
+                <div class="card-icon">📂</div>
+                <h2 class="card-title">本地音乐</h2>
+                <p class="card-desc">上传并播放本地音乐文件，支持MP3、WAV、FLAC等常见格式</p>
+            </a>
+            <!-- 板块2：在线音乐(有限) - 跳转地址：z.html -->
+            <a href="z.html" class="player-card" id="onlinePlayerCard">
+                <div class="card-icon">🌐</div>
+                <h2 class="card-title">在线音乐(有限)</h2>
+                <p class="card-desc">播放预设在线音乐资源，无需本地文件，资源范围有限</p>
+            </a>
+        </div>
+    </div>
+    <a href="index.html" class="back-home">返回首页</a>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // 页面淡入逻辑
+            setTimeout(() => {
+                document.body.classList.add('loaded');
+            }, 100);
+
+            // 1. 修复：直接通过a标签默认跳转，移除可能冲突的点击事件绑定
+            const lastSelected = localStorage.getItem('lastSelectedPlayer');
+            const localCard = document.getElementById('localPlayerCard');
+            const onlineCard = document.getElementById('onlinePlayerCard');
+
+            // 2. 标记上次选择的板块（仅视觉标记，不影响跳转）
+            if (lastSelected === 'b.html') {
+                localCard.classList.add('active');
+            } else if (lastSelected === 'z.html') {
+                onlineCard.classList.add('active');
+            }
+
+            // 3. 点击时仅记录路径，不拦截a标签跳转（修复核心：不阻止默认行为）
+            localCard.addEventListener('click', () => {
+                localStorage.setItem('lastSelectedPlayer', 'b.html');
+            });
+            onlineCard.addEventListener('click', () => {
+                localStorage.setItem('lastSelectedPlayer', 'z.html');
+            });
+
+            // 4. 额外修复：确保a标签无样式拦截，强制设置指针事件
+            document.querySelectorAll('.player-card').forEach(card => {
+                card.style.pointerEvents = 'auto';
+                card.style.zIndex = '3'; // 确保卡片在最上层，点击不被遮挡
+            });
+        });
+    </script>
+</body>
+</html>
