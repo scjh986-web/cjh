@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的秘密</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        /* 页面固定：禁止滚动，内容完全居中 */
+        body {
+            background: linear-gradient(120deg, #f0f7ff 0%, #e6f0ff 50%, #d9e9ff 100%);
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden; 
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center; /* 恢复居中布局 */
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.8s;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+        body.loaded {
+            opacity: 1;
+        }
+        /* 标题居中显示 */
+        .page-header {
+            font-size: 2.5rem;
+            color: #1e40af;
+            font-weight: 600;
+            margin-bottom: 2.5rem; 
+            letter-spacing: 0.1em;
+            position: relative;
+        }
+        .page-header::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 3px;
+            background-color: #3b82f6;
+            border-radius: 2px;
+        }
+        /* 核心内容居中，视觉聚焦 */
+        .secret-container {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 3rem 4rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(71, 147, 255, 0.15);
+            border: 1px solid rgba(114, 183, 255, 0.2);
+            text-align: center;
+            margin: 0 auto; /* 强制居中 */
+        }
+        /* 核心文字：视觉焦点 */
+        .secret-text {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #1e40af;
+            line-height: 1.5;
+            letter-spacing: 0.05em;
+            margin-bottom: 1.5rem;
+        }
+        /* 装饰小字 */
+        .secret-note {
+            font-size: 1.1rem;
+            color: #4a6fa5;
+            opacity: 0.8;
+        }
+        /* 返回按钮固定在底部，居中显示 */
+        .back-home {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            background-color: #3b82f6;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 1.1rem;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+        .back-home:hover {
+            background-color: #2563eb;
+        }
+        /* 响应式适配 */
+        @media (max-width: 768px) {
+            .page-header {
+                font-size: 2rem;
+                margin-bottom: 2rem;
+            }
+            .secret-container {
+                padding: 2rem 1.5rem;
+            }
+            .secret-text {
+                font-size: 2rem;
+            }
+            .secret-note {
+                font-size: 1rem;
+            }
+            .back-home {
+                bottom: 30px;
+                padding: 10px 20px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1 class="page-header">我的秘密</h1>
+    <div class="secret-container">
+        <div class="secret-text" id="secret-main"></div>
+        <div class="secret-note">待你查看</div>
+    </div>
+    <a href="index.html" class="back-home">返回首页</a>
+
+    <script>
+        const secretCode = "\u79E6\u6B23\u8339\u6211\u559C\u6B22\u4F60";
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('secret-main').textContent = secretCode;
+            document.body.classList.add('loaded');
+        });
+    </script>
+</body>
+</html>
