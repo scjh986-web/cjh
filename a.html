@@ -1,0 +1,724 @@
+<style>body {display: none;}</style>
+<script src="weiyan2.js"></script>
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>密码验证</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+        body {
+            background: linear-gradient(120deg, #f0f7ff 0%, #e6f0ff 50%, #d9e9ff 100%);
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.8s ease;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+        body.loaded {
+            opacity: 1;
+        }
+        /* 容器通用过渡动画：淡入+位移 */
+        .container {
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        .container.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .unlock-container {
+            background: #fff;
+            padding: 2rem 1.8rem;
+            border-radius: 20px;
+            box-shadow: 0 8px 24px rgba(71, 147, 255, 0.1), 0 2px 6px rgba(71, 147, 255, 0.08);
+            border: 1px solid rgba(114, 183, 255, 0.15);
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            position: relative;
+        }
+        .unlock-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, #3b82f6, #818cf8);
+        }
+        .unlock-icon {
+            font-size: 2.8rem;
+            color: #3b82f6;
+            margin-bottom: 1.2rem;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: all 0.4s ease 0.1s;
+        }
+        .unlock-container.show .unlock-icon {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .unlock-title {
+            font-size: 1.8rem;
+            color: #1e40af;
+            margin-bottom: 0.8rem;
+            letter-spacing: 0.02em;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.4s ease 0.2s;
+        }
+        .unlock-container.show .unlock-title {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .unlock-subtitle {
+            font-size: 0.95rem;
+            color: #64748b;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.4s ease 0.3s;
+        }
+        .unlock-container.show .unlock-subtitle {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .input-wrapper {
+            position: relative;
+            width: 100%;
+            margin-bottom: 1rem;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.4s ease 0.4s;
+        }
+        .unlock-container.show .input-wrapper {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .code-input {
+            width: 100%;
+            padding: 12px 20px;
+            padding-right: 45px;
+            border: 1px solid rgba(114, 183, 255, 0.2);
+            border-radius: 12px;
+            font-size: 1rem;
+            color: #1e40af;
+            outline: none;
+            transition: all 0.3s ease;
+            text-indent: 5px;
+            background: #f8fafc;
+        }
+        .code-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            background: #fff;
+            transform: scale(1.02);
+        }
+        .code-input::placeholder {
+            color: #a5b4fc;
+        }
+        .toggle-pwd {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #64748b;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+        .toggle-pwd:hover {
+            color: #3b82f6;
+            transform: translateY(-50%) scale(1.1);
+        }
+        .remember-wrap {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            margin: 0.5rem 0 1.5rem;
+            font-size: 0.9rem;
+            color: #64748b;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.4s ease 0.5s;
+        }
+        .unlock-container.show .remember-wrap {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .remember-check {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            accent-color: #3b82f6;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .remember-check:checked {
+            transform: scale(1.1);
+        }
+        /* 按钮通用过渡 */
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 1rem;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        .unlock-btn {
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+            transition-delay: 0.6s;
+        }
+        .unlock-container.show .unlock-btn {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .unlock-btn:hover {
+            background: linear-gradient(90deg, #2563eb, #3b82f6);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.25);
+            transform: translateY(-2px);
+        }
+        .unlock-btn:active {
+            transform: scale(0.98) translateY(0);
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+        }
+        /* 清除验证状态按钮 */
+        .clear-verify-btn {
+            background: transparent;
+            color: #64748b;
+            border: 1px solid #d1d5db;
+            transition-delay: 0.7s;
+        }
+        .unlock-container.show .clear-verify-btn {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .clear-verify-btn:hover {
+            background: #f3f4f6;
+            color: #dc2626;
+            border-color: #fecdd3;
+            transform: translateY(-2px);
+        }
+        .clear-verify-btn:active {
+            transform: scale(0.98) translateY(0);
+            background: #fee2e2;
+        }
+        /* 取消输入界面按钮 */
+        .cancel-input-btn {
+            background: #f3f4f6;
+            color: #64748b;
+            border: 1px solid #d1d5db;
+            transition-delay: 0.5s;
+        }
+        .quick-enter-container.show .cancel-input-btn {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .cancel-input-btn:hover {
+            background: #e5e7eb;
+            color: #1f2937;
+            transform: translateY(-2px);
+        }
+        .cancel-input-btn:active {
+            transform: scale(0.98) translateY(0);
+            background: #d1d5db;
+        }
+        .loading {
+            display: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .error-tip {
+            color: #dc2626;
+            font-size: 0.9rem;
+            opacity: 0;
+            height: 1.2rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 0.5rem;
+            transform: translateY(5px);
+        }
+        .error-tip.show {
+            opacity: 1;
+            transform: translateY(0);
+            animation: shake 0.5s ease;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-3px); }
+            75% { transform: translateX(3px); }
+        }
+        /* 快速进入容器动画 */
+        .quick-enter-container {
+            background: #fff;
+            padding: 2rem 1.8rem;
+            border-radius: 20px;
+            box-shadow: 0 8px 24px rgba(71, 147, 255, 0.1), 0 2px 6px rgba(71, 147, 255, 0.08);
+            border: 1px solid rgba(114, 183, 255, 0.15);
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            display: none;
+        }
+        .quick-icon {
+            font-size: 2.5rem;
+            color: #3b82f6;
+            margin-bottom: 1rem;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: all 0.4s ease 0.1s;
+        }
+        .quick-enter-container.show .quick-icon {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .quick-title {
+            font-size: 1.6rem;
+            color: #1e40af;
+            margin-bottom: 0.6rem;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.4s ease 0.2s;
+        }
+        .quick-enter-container.show .quick-title {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .quick-desc {
+            font-size: 0.95rem;
+            color: #64748b;
+            margin-bottom: 1.5rem;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.4s ease 0.3s;
+        }
+        .quick-enter-container.show .quick-desc {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .quick-enter-btn {
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            color: white;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+            transition-delay: 0.4s;
+        }
+        .quick-enter-container.show .quick-enter-btn {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .quick-enter-btn:hover {
+            background: linear-gradient(90deg, #2563eb, #3b82f6);
+            box-shadow: 0 6px 16px rgba(59, 130, 246, 0.25);
+            transform: translateY(-2px);
+        }
+        .quick-enter-btn:active {
+            transform: scale(0.98) translateY(0);
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+        }
+        /* 秘密展示容器动画 */
+        .secret-container {
+            background-color: rgba(255, 255, 255, 0.95);
+            padding: 3rem 4rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(71, 147, 255, 0.15);
+            border: 1px solid rgba(114, 183, 255, 0.2);
+            text-align: center;
+            margin: 0 auto;
+            display: none;
+            opacity: 0;
+            transform: scale(0.95) translateY(20px);
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .secret-container.show {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+        .page-header {
+            font-size: 2.5rem;
+            color: #1e40af;
+            font-weight: 600;
+            margin-bottom: 2.5rem;
+            letter-spacing: 0.1em;
+            position: relative;
+            display: none;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s;
+        }
+        .page-header.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .page-header::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 3px;
+            background-color: #3b82f6;
+            border-radius: 2px;
+            width: 0;
+            transition: width 0.6s ease 0.5s;
+        }
+        .page-header.show::after {
+            width: 80px;
+        }
+        .secret-text {
+            font-size: 3rem;
+            font-weight: 700;
+            color: #1e40af;
+            line-height: 1.5;
+            letter-spacing: 0.05em;
+            margin-bottom: 1.5rem;
+            opacity: 0;
+            transform: translateY(15px);
+            transition: all 0.6s ease 0.4s;
+        }
+        .secret-container.show .secret-text {
+            opacity: 1;
+            transform: translateY(0);
+            animation: fadeInUp 0.8s ease 0.6s;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .secret-note {
+            font-size: 1.1rem;
+            color: #4a6fa5;
+            opacity: 0;
+            transform: translateY(15px);
+            transition: all 0.6s ease 0.7s;
+        }
+        .secret-container.show .secret-note {
+            opacity: 0.8;
+            transform: translateY(0);
+        }
+        .back-btn {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            padding: 12px 24px;
+            background-color: #3b82f6;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 1.1rem;
+            font-weight: 500;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            opacity: 0;
+        }
+        .back-btn.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .back-btn:hover {
+            background-color: #2563eb;
+            transform: translateX(-50%) translateY(-2px);
+        }
+        /* 页面切换过渡动画：淡出 */
+        .fade-out {
+            animation: fadeOut 0.4s ease forwards;
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-10px); }
+        }
+        @media (max-width: 768px) {
+            .unlock-container, .quick-enter-container {
+                padding: 1.8rem 1.5rem;
+                max-width: 92%;
+            }
+            .unlock-icon, .quick-icon {
+                font-size: 2.5rem;
+            }
+            .unlock-title, .quick-title {
+                font-size: 1.6rem;
+            }
+            .code-input {
+                padding: 11px 18px;
+                padding-right: 40px;
+            }
+            .btn {
+                padding: 11px;
+                font-size: 0.95rem;
+            }
+            .page-header {
+                font-size: 2rem;
+                margin-bottom: 2rem;
+            }
+            .secret-container {
+                padding: 2rem 1.5rem;
+            }
+            .secret-text {
+                font-size: 2rem;
+            }
+            .secret-note {
+                font-size: 1rem;
+            }
+            .back-btn {
+                bottom: 30px;
+                padding: 10px 20px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 密码验证容器 -->
+    <div class="unlock-container container">
+        <div class="unlock-icon">🔒</div>
+        <h2 class="unlock-title">请验证</h2>
+        <p class="unlock-subtitle">验证通过即可查看内容</p>
+        <div class="input-wrapper">
+            <input type="password" class="code-input" placeholder="请输入" maxlength="18">
+            <span class="toggle-pwd">👁️</span>
+        </div>
+        <div class="remember-wrap">
+            <input type="checkbox" class="remember-check" id="rememberCheck">
+            <label for="rememberCheck">下次直接进入</label>
+        </div>
+        <button class="unlock-btn btn">
+            <span class="btn-text">查看</span>
+            <div class="loading"></div>
+        </button>
+        <!-- 清除验证状态按钮 -->
+        <button class="clear-verify-btn btn">清除验证状态</button>
+        <p class="error-tip"><span>⚠️</span> 输入错误，请重试</p>
+    </div>
+
+    <!-- 快速进入容器：新增“取消输入界面”按钮 -->
+    <div class="quick-enter-container container">
+        <div class="quick-icon">✅</div>
+        <h2 class="quick-title">已识别验证状态</h2>
+        <p class="quick-desc">点击下方按钮直接进入</p>
+        <button class="quick-enter-btn btn">确定进入</button>
+        <!-- 取消输入界面按钮（位于“确定进入”下方） -->
+        <button class="cancel-input-btn btn">取消输入界面</button>
+        <!-- 清除验证状态按钮 -->
+        <button class="clear-verify-btn btn">清除验证状态</button>
+    </div>
+
+    <!-- 秘密展示容器 -->
+    <h1 class="page-header">我的秘密</h1>
+    <div class="secret-container">
+        <div class="secret-text" id="secret-main"></div>
+        <div class="secret-note">待你查看</div>
+    </div>
+
+    <!-- 返回按钮 -->
+    <a href="javascript:history.back()" class="back-btn">返回</a>
+
+    <script>
+        // 核心配置
+        const correctPwd = "pxr";
+        const secretCode = "\u79E6\u6B23\u5982\u6211\u559C\u6B22\u4F60";
+        const storageKeys = {
+            isVerified: "hasVerified",
+            rememberEnter: "rememberQuickEnter"
+        };
+
+        // DOM元素
+        const body = document.body;
+        const unlockContainer = document.querySelector('.unlock-container');
+        const quickEnterContainer = document.querySelector('.quick-enter-container');
+        const secretContainer = document.querySelector('.secret-container');
+        const pageHeader = document.querySelector('.page-header');
+        const codeInput = document.querySelector('.code-input');
+        const togglePwd = document.querySelector('.toggle-pwd');
+        const rememberCheck = document.querySelector('.remember-check');
+        const unlockBtn = document.querySelector('.unlock-btn');
+        const quickEnterBtn = document.querySelector('.quick-enter-btn');
+        const clearVerifyBtns = document.querySelectorAll('.clear-verify-btn');
+        // 获取“取消输入界面”按钮
+        const cancelInputBtn = document.querySelector('.cancel-input-btn');
+        const btnText = document.querySelector('.btn-text');
+        const loading = document.querySelector('.loading');
+        const errorTip = document.querySelector('.error-tip');
+        const secretMain = document.getElementById('secret-main');
+        const backBtn = document.querySelector('.back-btn');
+
+        // 状态变量
+        let pwdVisible = false;
+
+        // 页面加载初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                body.classList.add('loaded');
+                // 初始化显示对应容器并添加入场动画
+                initShowContainer();
+            }, 100);
+        });
+
+        // 初始化显示对应容器
+        function initShowContainer() {
+            const isVerified = localStorage.getItem(storageKeys.isVerified) === "true";
+            const needQuickEnter = localStorage.getItem(storageKeys.rememberEnter) === "true";
+            
+            if (isVerified && needQuickEnter) {
+                unlockContainer.style.display = 'none';
+                quickEnterContainer.style.display = 'block';
+                setTimeout(() => quickEnterContainer.classList.add('show'), 50);
+            } else {
+                quickEnterContainer.style.display = 'none';
+                unlockContainer.style.display = 'block';
+                setTimeout(() => unlockContainer.classList.add('show'), 50);
+                codeInput.focus();
+            }
+        }
+
+        // 密码可见性切换
+        togglePwd.addEventListener('click', () => {
+            pwdVisible = !pwdVisible;
+            codeInput.type = pwdVisible ? 'text' : 'password';
+            togglePwd.textContent = pwdVisible ? '🙈' : '👁️';
+        });
+
+        // 密码验证
+        unlockBtn.addEventListener('click', verifyPwd);
+        codeInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !unlockBtn.disabled) verifyPwd();
+        });
+
+        // 快速进入
+        quickEnterBtn.addEventListener('click', () => {
+            // 快速进入添加容器淡出动画
+            quickEnterContainer.classList.add('fade-out');
+            setTimeout(showSecret, 400);
+        });
+
+        // “取消输入界面”按钮事件：隐藏快速进入容器，显示密码输入容器
+        cancelInputBtn.addEventListener('click', () => {
+            quickEnterContainer.classList.add('fade-out');
+            setTimeout(() => {
+                quickEnterContainer.style.display = 'none';
+                quickEnterContainer.classList.remove('show', 'fade-out');
+                unlockContainer.style.display = 'block';
+                setTimeout(() => unlockContainer.classList.add('show'), 50);
+                codeInput.focus();
+            }, 400);
+        });
+
+        // 清除验证状态按钮事件
+        clearVerifyBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                // 清除localStorage中的验证状态
+                localStorage.removeItem(storageKeys.isVerified);
+                localStorage.removeItem(storageKeys.rememberEnter);
+                
+                // 当前显示容器添加淡出动画
+                const currentContainer = unlockContainer.style.display === 'block' ? unlockContainer : quickEnterContainer;
+                currentContainer.classList.add('fade-out');
+                
+                // 动画结束后重新初始化容器
+                setTimeout(() => {
+                    currentContainer.classList.remove('show', 'fade-out');
+                    initShowContainer();
+                }, 400);
+            });
+        });
+
+        // 验证函数
+        function verifyPwd() {
+            const inputPwd = codeInput.value.trim();
+            errorTip.classList.remove('show');
+
+            if (inputPwd === '') {
+                errorTip.innerHTML = '<span>⚠️</span> 请输入内容';
+                errorTip.classList.add('show');
+                return;
+            }
+
+            loading.style.display = 'block';
+            btnText.textContent = '验证中...';
+            unlockBtn.disabled = true;
+
+            setTimeout(() => {
+                if (inputPwd === correctPwd) {
+                    localStorage.setItem(storageKeys.isVerified, "true");
+                    localStorage.setItem(storageKeys.rememberEnter, rememberCheck.checked ? "true" : "false");
+                    // 验证成功添加容器淡出动画
+                    unlockContainer.classList.add('fade-out');
+                    setTimeout(showSecret, 400);
+                } else {
+                    loading.style.display = 'none';
+                    btnText.textContent = '查看';
+                    unlockBtn.disabled = false;
+                    errorTip.innerHTML = '<span>⚠️</span> 输入错误，请重试';
+                    errorTip.classList.add('show');
+                    // 输入框抖动反馈
+                    codeInput.style.transform = 'translateX(6px)';
+                    setTimeout(() => {
+                        codeInput.style.transform = 'translateX(-6px)';
+                        setTimeout(() => codeInput.style.transform = 'translateX(0)', 100);
+                    }, 100);
+                }
+            }, 1200);
+        }
+
+        // 显示秘密内容函数
+        function showSecret() {
+            // 隐藏验证容器，显示秘密容器
+            unlockContainer.style.display = 'none';
+            quickEnterContainer.style.display = 'none';
+            pageHeader.style.display = 'block';
+            secretContainer.style.display = 'block';
+            
+            // 添加秘密容器入场动画
+            setTimeout(() => {
+                pageHeader.classList.add('show');
+                secretContainer.classList.add('show');
+                backBtn.classList.add('show');
+            }, 50);
+            
+            // 渲染秘密内容
+            secretMain.textContent = secretCode;
+        }
+    </script>
+</body>
+</html>
