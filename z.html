@@ -1,0 +1,453 @@
+<html lang="zh-CN">
+ <head> 
+  <style>body {display: none;}</style> 
+  <script src="weiyan.js"></script> 
+  <meta charset="UTF-8"> 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+  <title>音乐</title> 
+  <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f0f7ff 0%, #e6f0ff 100%);
+            padding: 40px 20px;
+            color: #2c3e50;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+        /* 页面标题 */
+        .page-title {
+            text-align: center;
+            color: #1e40af;
+            font-size: 32px;
+            margin-bottom: 40px;
+            letter-spacing: 1px;
+        }
+        /* 音乐容器 */
+        .music-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(149, 157, 165, 0.1);
+            padding: 30px;
+            border: 1px solid rgba(114, 183, 255, 0.2);
+        }
+        /* 播放列表 */
+        .music-list {
+            list-style: none;
+            margin-bottom: 30px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .music-list li {
+            padding: 12px 15px;
+            margin-bottom: 8px;
+            background-color: #f0f7ff;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .music-list li:hover {
+            background-color: #e6f0ff;
+            border-color: rgba(71, 147, 255, 0.3);
+        }
+        .music-list li.active {
+            background-color: #e6f0ff;
+            border-color: #3b82f6;
+            color: #1e40af;
+            font-weight: 500;
+        }
+        .music-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 70%;
+        }
+        .music-duration {
+            font-size: 14px;
+            color: #4a6fa5;
+        }
+        /* 播放器控制区（按钮大小调整：循环/上一首/下一首48×48px，播放按钮60×60px） */
+        .player-controls {
+            padding: 20px;
+            background-color: #f8fafc;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+        }
+        .control-btns {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .control-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.3s ease;
+        }
+        .control-btn:hover {
+            background-color: #2563eb;
+            transform: scale(1.05);
+        }
+        .play-btn {
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+        }
+        /* 进度条 */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background-color: #e2e8f0;
+            border-radius: 3px;
+            margin: 0 auto;
+            cursor: pointer;
+            position: relative;
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: #3b82f6;
+            border-radius: 3px;
+            transition: width 0.1s linear;
+        }
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #4a6fa5;
+            margin-top: 8px;
+        }
+        /* 返回首页按钮 */
+        .back-home {
+            display: block;
+            width: 120px;
+            margin: 30px auto 0;
+            padding: 10px 20px;
+            background-color: #3b82f6;
+            color: white;
+            border-radius: 6px;
+            text-align: center;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 16px;
+        }
+        .back-home:hover {
+            background-color: #2563eb;
+            transform: translateY(-2px);
+        }
+        /* 无音乐提示 */
+        .empty-tip {
+            text-align: center;
+            padding: 20px;
+            color: #4a6fa5;
+        }
+    </style> 
+  <script src="js/jq.js"></script> 
+ </head> 
+ <body id="v1" style="display: block;"> 
+  <h1 id="v2" class="page-title">音乐</h1> 
+  <div id="v3" class="music-container"> 
+   <!-- 本地音乐列表（需手动配置音乐文件路径） --> 
+   <ul class="music-list" id="music-list">
+    <li data-index="0" class=""> <span class="music-name">Tikolin Purre(完整版)</span> <span class="music-duration">01:48</span> </li>
+    <li data-index="1" class=""> <span class="music-name">开往春天的地铁</span> <span class="music-duration">05:10</span> </li>
+    <li data-index="2" class=""> <span class="music-name">可我只是海</span> <span class="music-duration">00:24</span> </li>
+    <li data-index="3" class="active"> <span class="music-name">我离开了北方</span> <span class="music-duration">00:12</span> </li>
+   </ul> 
+   <!-- 播放器控制（含循环、上一首、播放、下一首） --> 
+   <div id="v4" class="player-controls"> 
+    <div id="v5" class="control-btns"> 
+     <button id="v6" class="control-btn loop-btn" title="当前：列表循环，点击切换">🔄</button> 
+     <button id="v7" class="control-btn prev-btn">◀</button> 
+     <button id="v8" class="control-btn play-btn">■</button> 
+     <button id="v9" class="control-btn next-btn">▶</button> 
+    </div> 
+    <div class="progress-container" id="progress-container"> 
+     <div class="progress-bar" id="progress-bar" style="width: 1.84289%;"></div> 
+    </div> 
+    <div id="v10" class="time-display"> 
+     <span id="current-time">00:00</span> 
+     <span id="total-time">00:24</span> 
+    </div> 
+   </div> 
+  </div> 
+  <!-- 返回首页按钮 --> 
+  <a id="v11" href="index.html" class="back-home">返回首页</a> 
+  <script>
+        // 1. 配置本地音乐（关键！需将音乐文件与本HTML放在同一文件夹，修改以下信息）
+        const localMusics = [
+            { title: "Tikolin Purre(完整版)", src: "https://audio.jukehost.co.uk/bNPUZLinSUeDbFBVG6BZtRGC3V6nRMj8" }, // 音乐文件名为"1.mp3"，显示标题自定义
+            { title: "开往春天的地铁", src: "https://audio.jukehost.co.uk/xPF8kXt11lpdYjESuJ91G0aCs8DRRKg3" }, // 示例：文件名为"晴天.mp3"
+            { title: "可我只是海", src: "https://audio.jukehost.co.uk/p4Xz3DPvj7xZHCanTWfsSOiD9rXRMe8u" }, // 支持MP3、FLAC、WAV等格式
+            { title: "恋人", src: "https://audio.jukehost.co.uk/CF2QDF8i69GmyoqkbjSXXNOJX432jHsO" },
+            { title: "我离开了北方", src: "https://audio.jukehost.co.uk/7DU81TGOSSWtPzNkICGCzVGBVvnzX1dC" },
+            { title: "纯音乐", src: "https://audio.jukehost.co.uk/CbxiQzllFo1JrlBEG6rGj5wETtQEXgfS" },
+            { title: "转身离开", src: "https://audio.jukehost.co.uk/RnRY7SBMqYN7eKo5zm9ldPir0EtUuOf6" },
+            { title: "4.55", src: "https://audio.jukehost.co.uk/qS1WdNgOymFDdoaG71E4MsHwIyTR9A5T" },
+            { title: "Savage Love", src: "https://audio.jukehost.co.uk/4cpT2il2kiEAYqRPEgTuzo7m1DCLo8ZE" },
+            { title: "沉溺", src: "https://audio.jukehost.co.uk/J20KmhLH9m66PThKiwXOEOcyJmcIg3VP" },
+            { title: "我已经牵你手", src: "https://audio.jukehost.co.uk/WjmKFTK3go3AXfnGXVmh4jSeYhGtK71h" },
+            { title: "武家坡", src: "https://audio.jukehost.co.uk/rBQqWST2aQNn3fxAqNTRVy8DewVlc4Th" },
+            { title: "心如止水", src: "https://audio.jukehost.co.uk/GqRYNrT2pkg7EYvcfcwjWCUfsGIDsMHz" },
+            { title: "终于", src: "https://audio.jukehost.co.uk/8tomXKBfn17ebxmiBBGPgBnY6QniJd0P" },
+            { title: "晴天(从前有人爱你很久)", src: "https://audio.jukehost.co.uk/b1iDoPgddrCxI89xAB5pwMnSMPEYwvU3" },
+            { title: "歌曲1", src: "https://audio.jukehost.co.uk/RTHgobHOJn2qxbljcktBXcmpDml2iWfg" },
+            { title: "歌曲2", src: "https://audio.jukehost.co.uk/JxFObG9UdNDICloJwP9LO5Ubt8wFQ4VO" },
+            // 可继续添加更多本地音乐，格式：{ title: "歌曲名 - 歌手", src: "音乐文件名.格式" }
+        ];
+
+        // 核心变量
+        const audioElement = new Audio();
+        const musicListEl = document.getElementById('music-list');
+        const playBtn = document.querySelector('.play-btn');
+        const prevBtn = document.querySelector('.prev-btn');
+        const nextBtn = document.querySelector('.next-btn');
+        const loopBtn = document.querySelector('.loop-btn');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const currentTimeDisplay = document.getElementById('current-time');
+        const totalTimeDisplay = document.getElementById('total-time');
+        let currentMusicIndex = 0;
+        let loopMode = 'list'; // 循环模式：list（列表）、single（单曲）、random（随机）
+        let durationListener = null; // 修复时长显示的监听标识
+
+        // 页面加载时渲染音乐列表
+        window.addEventListener('DOMContentLoaded', () => {
+            renderMusicList();
+            // 加载第一首音乐（默认不自动播放，需点击播放按钮）
+            if (localMusics.length > 0) {
+                loadMusic(currentMusicIndex);
+            }
+            // 显示页面（取消初始隐藏）
+            document.body.style.display = 'block';
+        });
+
+        // 1. 渲染音乐列表
+        function renderMusicList() {
+            if (localMusics.length === 0) {
+                musicListEl.innerHTML = '<li class="empty-tip">暂无本地音乐，请在JS中配置</li>';
+                return;
+            }
+
+            // 清空列表后重新渲染
+            musicListEl.innerHTML = '';
+            localMusics.forEach((music, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span class="music-name">${music.title}</span>
+                    <span class="music-duration">加载中...</span>
+                `;
+                li.dataset.index = index;
+
+                // 点击列表项切换播放对应音乐
+                li.addEventListener('click', () => {
+                    currentMusicIndex = index;
+                    loadMusic(currentMusicIndex);
+                    playMusic(); // 点击后自动播放
+                });
+
+                musicListEl.appendChild(li);
+
+                // 提前获取音乐时长并显示（修复时长混乱问题）
+                const tempAudio = new Audio(music.src);
+                tempAudio.addEventListener('loadedmetadata', () => {
+                    li.querySelector('.music-duration').textContent = formatTime(tempAudio.duration);
+                });
+            });
+
+            // 标记当前选中的音乐
+            updateMusicListActive(currentMusicIndex);
+        }
+
+        // 2. 加载指定索引的音乐
+        function loadMusic(index) {
+            if (index < 0 || index >= localMusics.length) return;
+
+            // 停止当前播放 + 清理旧的时长监听（核心修复：避免时长混乱）
+            audioElement.pause();
+            if (durationListener) {
+                audioElement.removeEventListener('loadedmetadata', durationListener);
+            }
+
+            // 加载新音乐
+            const currentMusic = localMusics[index];
+            audioElement.src = currentMusic.src;
+
+            // 监听新音乐的元数据（获取总时长）
+            durationListener = function() {
+                totalTimeDisplay.textContent = formatTime(audioElement.duration);
+                // 更新当前音乐列表项的时长（确保显示正确）
+                const currentLi = musicListEl.querySelector(`li[data-index="${index}"]`);
+                if (currentLi) {
+                    currentLi.querySelector('.music-duration').textContent = formatTime(audioElement.duration);
+                }
+            };
+            audioElement.addEventListener('loadedmetadata', durationListener);
+
+            // 音乐加载失败处理
+            audioElement.addEventListener('error', () => {
+                webtools-static-lert(`《${currentMusic.title}》加载失败，请检查音乐文件路径是否正确`);
+            });
+
+            // 更新列表选中状态
+            updateMusicListActive(index);
+        }
+
+        // 3. 播放音乐
+        function playMusic() {
+            audioElement.play().then(() => {
+                updatePlayBtnStatus(true); // 切换按钮为暂停图标（■）
+            }).catch(err => {
+                console.error('播放失败：', err);
+                webtools-static-lert('播放失败，请检查音乐文件是否正常');
+            });
+        }
+
+        // 4. 暂停音乐
+        function pauseMusic() {
+            audioElement.pause();
+            updatePlayBtnStatus(false); // 切换按钮为播放图标（▶）
+        }
+
+        // 5. 播放/暂停按钮点击事件
+        playBtn.addEventListener('click', () => {
+            if (audioElement.paused) {
+                playMusic();
+            } else {
+                pauseMusic();
+            }
+        });
+
+        // 6. 上一首按钮点击事件
+        prevBtn.addEventListener('click', () => {
+            if (localMusics.length === 0) return;
+            
+            if (loopMode === 'random') {
+                // 随机模式：生成不同于当前的随机索引
+                let randomIndex;
+                do {
+                    randomIndex = Math.floor(Math.random() * localMusics.length);
+                } while (randomIndex === currentMusicIndex && localMusics.length > 1);
+                currentMusicIndex = randomIndex;
+            } else {
+                // 列表/单曲模式：上一首（循环到最后一首）
+                currentMusicIndex = (currentMusicIndex - 1 + localMusics.length) % localMusics.length;
+            }
+
+            loadMusic(currentMusicIndex);
+            playMusic();
+        });
+
+        // 7. 下一首按钮点击事件
+        nextBtn.addEventListener('click', () => {
+            if (localMusics.length === 0) return;
+            
+            if (loopMode === 'random') {
+                // 随机模式：生成不同于当前的随机索引
+                let randomIndex;
+                do {
+                    randomIndex = Math.floor(Math.random() * localMusics.length);
+                } while (randomIndex === currentMusicIndex && localMusics.length > 1);
+                currentMusicIndex = randomIndex;
+            } else {
+                // 列表/单曲模式：下一首（循环到第一首）
+                currentMusicIndex = (currentMusicIndex + 1) % localMusics.length;
+            }
+
+            loadMusic(currentMusicIndex);
+            playMusic();
+        });
+
+        // 8. 循环模式切换（点击循环按钮）
+        loopBtn.addEventListener('click', () => {
+            switch (loopMode) {
+                case 'list':
+                    loopMode = 'single';
+                    loopBtn.textContent = '🔂';
+                    loopBtn.title = '当前：单曲循环，点击切换';
+                    break;
+                case 'single':
+                    loopMode = 'random';
+                    loopBtn.textContent = '🔀';
+                    loopBtn.title = '当前：随机播放，点击切换';
+                    break;
+                case 'random':
+                    loopMode = 'list';
+                    loopBtn.textContent = '🔄';
+                    loopBtn.title = '当前：列表循环，点击切换';
+                    break;
+            }
+        });
+
+        // 9. 进度条点击跳转
+        progressContainer.addEventListener('click', (e) => {
+            if (isNaN(audioElement.duration)) return; // 音乐未加载完成时不执行
+            const progressPercent = e.offsetX / progressContainer.offsetWidth;
+            audioElement.currentTime = progressPercent * audioElement.duration;
+        });
+
+        // 10. 实时更新进度条和当前时间
+        audioElement.addEventListener('timeupdate', () => {
+            if (isNaN(audioElement.duration)) return;
+            const progressPercent = (audioElement.currentTime / audioElement.duration) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+            currentTimeDisplay.textContent = formatTime(audioElement.currentTime);
+        });
+
+        // 11. 音乐播放结束自动下一首
+        audioElement.addEventListener('ended', () => {
+            if (loopMode === 'single') {
+                // 单曲循环：重新播放当前首
+                audioElement.currentTime = 0;
+                playMusic();
+            } else {
+                // 列表/随机模式：自动下一首
+                nextBtn.click();
+            }
+        });
+
+        // 工具函数：格式化时间（秒 → 分:秒，补0）
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return '00:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // 工具函数：更新播放按钮图标
+        function updatePlayBtnStatus(isPlaying) {
+            playBtn.textContent = isPlaying ? '■' : '▶';
+        }
+
+        // 工具函数：更新音乐列表选中状态
+        function updateMusicListActive(activeIndex) {
+            musicListEl.querySelectorAll('li').forEach(li => {
+                li.classList.remove('active');
+                if (parseInt(li.dataset.index) === activeIndex) {
+                    li.classList.add('active');
+                }
+            });
+        }
+    </script>  
+ </body>
+</html>
