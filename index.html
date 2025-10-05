@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<script src="weiyan1.js"></script>
+<!-- 引入国庆轨迹彩蛋（所有页面通用，只需加这一行） -->
+<script src="national-track.js"></script>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>引导页</title>
+    <style>
+        /* 基础重置与通用样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', 'Microsoft YaHei', 'Segoe UI', Arial, sans-serif;
+        }
+
+        /* 技能徽章提示 */
+        .skill-badge {
+            position: fixed;
+            top: 20px;
+            right: -150px;
+            background-color: #48dbfb;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(72, 219, 251, 0.3);
+            transition: right 0.5s ease;
+            z-index: 999;
+            cursor: default;
+        }
+
+        /* 语音按钮样式 - 核心修改：图标颜色由绿色改为白色 */
+        .voice-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #dcf8c6;
+            border-radius: 18px;
+            border-top-right-radius: 5px;
+            padding: 8px 15px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            max-width: 300px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .voice-btn::after {
+            content: '';
+            position: absolute;
+            right: -8px;
+            top: 50%;
+            transform: translateY(-50%) rotate(20deg);
+            width: 16px;
+            height: 16px;
+            background-color: #dcf8c6;
+            border-radius: 0 0 50% 50%;
+            clip-path: polygon(0 0, 100% 50%, 0 100%);
+        }
+        .voice-btn.playing {
+            background-color: #c2e7b0;
+        }
+        .voice-btn.playing::after {
+            background-color: #c2e7b0;
+        }
+        .voice-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        /* 播放图标：边框颜色由绿色改为白色 */
+        .voice-icon.play::before {
+            content: '';
+            border-style: solid;
+            border-width: 10px 0 10px 16px;
+            border-color: transparent transparent transparent #ffffff; /* 原#07c160改为白色 */
+        }
+        /* 暂停图标：背景颜色由绿色改为白色 */
+        .voice-icon.pause::before,
+        .voice-icon.pause::after {
+            content: '';
+            width: 6px;
+            height: 16px;
+            background-color: #ffffff; /* 原#07c160改为白色 */
+            display: inline-block;
+        }
+        .voice-icon.pause::after {
+            margin-left: 4px;
+        }
+        .voice-text {
+            font-size: 14px;
+            color: #000;
+            flex: 1;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .voice-countdown {
+            font-size: 12px;
+            color: #333;
+            width: 60px;
+            text-align: right;
+            display: inline-block;
+            opacity: 1;
+        }
+
+        /* 页面主体样式 */
+        body {
+            background-color: #f8f9fa; 
+            background-image: url('https://picsum.photos/id/1048/1920/1080');
+            background-blend-mode: soft-light;
+            background-size: cover;
+            background-attachment: fixed;
+            color: #2d3436;
+            padding: 20px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            transition: opacity 0.6s ease;
+        }
+        body.fade-to-music {
+            opacity: 0;
+        }
+
+        /* 头像信息容器（响应式） */
+        .profile-container {
+            max-width: 1200px;
+            margin: 0 auto 30px;
+            padding: 20px;
+            background-color: rgba(255, 255, 255, 0.85);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            animation: fadeIn 0.5s ease forwards;
+            animation-delay: 0.1s;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        @keyframes fadeIn {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 小屏幕（≤768px）：纵向排列 */
+        @media (max-width: 768px) {
+            .profile-inner {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+                gap: 15px;
+            }
+            .avatar {
+                width: clamp(70px, 18vw, 100px);
+                height: clamp(70px, 18vw, 100px);
+            }
+            .avatar-tooltip {
+                bottom: -30px;
+            }
+            .name {
+                font-size: clamp(20px, 5vw, 28px);
+                margin-bottom: 5px;
+            }
+            .brief {
+                font-size: clamp(12px, 2.5vw, 14px);
+                max-width: 90%;
+                margin: 0 auto;
+            }
+        }
+
+        /* 大屏幕（>768px）：横向排列 */
+        @media (min-width: 769px) {
+            .profile-inner {
+                display: flex;
+                align-items: center;
+                gap: 25px;
+            }
+            .avatar-wrapper {
+                position: relative;
+                padding-bottom: 35px;
+            }
+            .avatar {
+                width: clamp(90px, 12vw, 130px);
+                height: clamp(90px, 12vw, 130px);
+            }
+            .avatar-tooltip {
+                bottom: -30px;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+            .profile-info {
+                flex: 1;
+            }
+            .name {
+                font-size: clamp(24px, 4vw, 36px);
+                margin-bottom: 10px;
+            }
+            .brief {
+                font-size: clamp(13px, 2vw, 15px);
+                margin-bottom: 15px;
+            }
+            .voice-btn {
+                margin: 0;
+            }
+        }
+
+        /* 头像样式 */
+        .avatar {
+            border-radius: 50%;
+            background: url('https://i1.qyimage.store/i/f5fb917dcd164265') center center no-repeat;
+            background-size: cover;
+            border: 2px dashed #48dbfb;
+            cursor: pointer;
+            transition: box-shadow 0.3s ease, transform 0.3s ease;
+            position: relative;
+        }
+        .avatar:hover {
+            box-shadow: 0 0 15px rgba(72, 219, 251, 0.5);
+            transform: scale(1.03);
+        }
+        .avatar-tooltip {
+            position: absolute;
+            background-color: rgba(45, 52, 54, 0.9);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            white-space: nowrap;
+            z-index: 10;
+        }
+        .avatar:hover .avatar-tooltip {
+            opacity: 1;
+        }
+
+        /* 名称与简介样式 */
+        .name {
+            color: #2d3436;
+            letter-spacing: 1.5px;
+            text-shadow: 0 0 8px rgba(72, 219, 251, 0.3);
+            transition: color 0.3s ease;
+        }
+        .name:hover {
+            color: #48dbfb;
+        }
+        .brief {
+            color: #636e72;
+            line-height: 1.6;
+            transition: color 0.3s ease;
+        }
+        .brief:hover {
+            color: #48dbfb;
+        }
+
+        /* 功能卡片网格 */
+        .section-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto 60px;
+        }
+        .section-card {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            padding: 30px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            border: 1px solid transparent;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.03);
+            animation: fadeIn 0.5s ease forwards;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        .section-grid > .section-card:nth-child(1) { animation-delay: 0.2s; }
+        .section-grid > .section-card:nth-child(2) { animation-delay: 0.3s; }
+        .section-grid > .section-card:nth-child(3) { animation-delay: 0.4s; }
+        .section-grid > .section-card:nth-child(4) { animation-delay: 0.5s; }
+        .section-grid > .section-card:nth-child(5) { animation-delay: 0.6s; }
+        .section-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            border-color: #48dbfb;
+            box-shadow: 0 8px 16px rgba(72, 219, 251, 0.15);
+        }
+        .section-card:active {
+            transform: scale(0.98);
+        }
+
+        /* 卡片图标与文字 */
+        .section-icon {
+            font-size: clamp(36px, 8vw, 56px);
+            color: #1dd1a1;
+            margin-bottom: 15px;
+            transition: transform 0.3s ease, color 0.3s ease;
+        }
+        .section-card:hover .section-icon {
+            color: #48dbfb;
+        }
+        #music-card:hover .section-icon {
+            transform: rotate(15deg);
+        }
+        .section-title {
+            font-size: clamp(18px, 4vw, 24px);
+            color: #2d3436;
+            margin-bottom: 10px;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+        .section-card:hover .section-title {
+            color: #48dbfb;
+        }
+        .section-desc {
+            font-size: clamp(12px, 2vw, 14px);
+            color: #636e72;
+            line-height: 1.5;
+            transition: color 0.3s ease;
+        }
+        .section-card:hover .section-desc {
+            color: #333;
+        }
+
+        /* 作品子网格 */
+        .works-subgrid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .work-card {
+            background-color: rgba(241, 248, 248, 0.9);
+            border-radius: 8px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        .work-card:hover {
+            background-color: rgba(232, 245, 245, 0.9);
+            transform: translateY(-3px);
+            border-color: #48dbfb;
+            box-shadow: 0 4px 12px rgba(72, 219, 251, 0.1);
+        }
+        .work-card h3 {
+            color: #00cec9;
+            margin-bottom: 8px;
+            font-size: clamp(16px, 3vw, 18px);
+            transition: color 0.3s ease;
+        }
+        .work-card:hover h3 {
+            color: #48dbfb;
+        }
+        .work-card p {
+            font-size: clamp(12px, 2vw, 14px);
+            color: #636e72;
+            transition: color 0.3s ease;
+        }
+        .work-card:hover p {
+            color: #333;
+        }
+
+        /* 内容区域样式 */
+        .content-area {
+            max-width: 1000px;
+            width: 90%;
+            margin: 40px auto;
+            padding: clamp(20px, 5vw, 30px);
+            background-color: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            border: 1px solid #48dbfb;
+            display: none;
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.5s ease, transform 0.5s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .content-area.active {
+            opacity: 1;
+            transform: translateY(0);
+            display: block;
+        }
+        .content-area.active:hover {
+            border-color: #1dd1a1;
+            box-shadow: 0 8px 20px rgba(72, 219, 251, 0.1);
+        }
+        .content-area h2 {
+            color: #00cec9;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #48dbfb;
+            font-size: clamp(20px, 4vw, 24px);
+            transition: color 0.3s ease, border-color 0.3s ease;
+        }
+        .content-area:hover h2 {
+            color: #48dbfb;
+            border-color: #1dd1a1;
+        }
+        .content-area p, .content-area li {
+            color: #2d3436;
+            line-height: 1.8;
+            margin-bottom: 15px;
+            font-size: clamp(13px, 2vw, 14px);
+            transition: color 0.3s ease;
+        }
+        .content-area:hover p,
+        .content-area:hover li {
+            color: #1a365d;
+        }
+        .content-area ul {
+            padding-left: 20px;
+        }
+        .content-area li strong {
+            color: #1dd1a1;
+            transition: color 0.3s ease;
+        }
+        .content-area:hover li strong {
+            color: #48dbfb;
+        }
+
+        /* 返回按钮样式 */
+        .back-btn {
+            display: inline-block;
+            margin-top: 20px;
+            padding: clamp(8px, 2vw, 10px) clamp(16px, 4vw, 20px);
+            background-color: #48dbfb;
+            color: white;
+            border: 1px solid #48dbfb;
+            border-radius: 6px;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: clamp(14px, 2vw, 16px);
+            cursor: pointer;
+            border: none;
+        }
+        .back-btn:hover {
+            background-color: #00cec9;
+            border-color: #00cec9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(72, 219, 251, 0.2);
+        }
+        .back-btn:active {
+            transform: translateY(0);
+        }
+
+        /* 访问计数器样式 */
+        .visit-counter {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 15px 20px;
+            background-color: rgba(255, 255, 255, 0.85);
+            border-radius: 8px;
+            text-align: center;
+            font-size: 14px;
+            color: #666;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        /* 底部备案信息样式 */
+        .footer-record {
+            width: 100%;
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f5f5f5;
+            border-top: 1px solid #eee;
+            text-align: center;
+        }
+        .record-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: #666;
+            text-decoration: none;
+            margin: 0 10px;
+            cursor: default;
+            pointer-events: none;
+        }
+        .record-link:hover {
+            color: #666;
+        }
+        .record-icon {
+            width: 18px;
+            height: 18px;
+            background-color: #48dbfb;
+            border-radius: 2px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+        }
+
+        /* 小屏幕适配补充 */
+        @media all and (-webkit-min-device-pixel-ratio: 1) and (max-device-width: 1080px) {
+            .voice-countdown {
+                width: 60px !important;
+            }
+            .voice-btn {
+                max-width: 300px !important;
+                padding: 8px 12px !important;
+            }
+            .voice-text {
+                font-size: 13px !important;
+            }
+            .voice-btn::after {
+                clip-path: none;
+                transform: translateY(-50%) rotate(20deg) skewX(20deg);
+            }
+        }
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            .section-card {
+                padding: 20px 15px;
+            }
+            .works-subgrid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="skill-badge" id="skillBadge">✨ 技能大师已解锁 ✨</div>
+
+    <!-- 头像信息区域 -->
+    <div class="profile-container">
+        <div class="profile-inner">
+            <div class="avatar-wrapper">
+                <div class="avatar" id="avatar">
+                    <div class="avatar-tooltip">点击三次有惊喜哦～</div>
+                </div>
+            </div>
+            <div class="profile-info">
+                <h1 class="name" id="userName">程佳辉</h1>
+                <p class="brief">16岁在读高中生，自学编程有股钻劲，用代码玩出创意🔥</p>
+                <!-- 语音按钮：图标已改为白色 -->
+                <div class="voice-btn" id="voiceBtn">
+                    <div class="voice-icon play" id="voiceIcon"></div>
+                    <div class="voice-text">点击收听高一必备琵琶行</div>
+                    <div class="voice-countdown" id="voiceCountdown">加载中...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 功能卡片区域 -->
+    <div class="section-grid">
+        <div class="section-card" data-target="about">
+            <div class="section-icon">📸</div>
+            <h2 class="section-title">关于我</h2>
+            <p class="section-desc">性格、价值观与生活态度</p>
+        </div>
+        <div class="section-card" data-target="works">
+            <div class="section-icon">💻</div>
+            <h2 class="section-title">作品</h2>
+            <p class="section-desc">我的代码小项目</p>
+        </div>
+        <div class="section-card" data-target="contact">
+            <div class="section-icon">✉️</div>
+            <h2 class="section-title">联系</h2>
+            <p class="section-desc">社交账号与联系方式</p>
+        </div>
+        <div class="section-card" data-target="skills" id="skillsCard">
+            <div class="section-icon">⚡</div>
+            <h2 class="section-title">技能</h2>
+            <p class="section-desc">技术能力与工具掌握</p>
+        </div>
+        <!-- 建议留言卡片：点击直接跳转腾讯问卷 -->
+        <div class="section-card" id="suggest-card">
+            <div class="section-icon">💡</div>
+            <h2 class="section-title">建议留言</h2>
+            <p class="section-desc">留下你的想法或建议</p>
+        </div>
+        <div class="section-card" id="music-card">
+            <div class="section-icon">🎵</div>
+            <h2 class="section-title">音乐</h2>
+            <p class="section-desc">我的专属音乐页面</p>
+        </div>
+    </div>
+
+    <!-- 内容区域 -->
+    <div id="about" class="content-area">
+        <h2>关于我</h2>
+        <p>我踏实肯干，对编程有股钻劲，遇到问题不轻易放弃。做事追求实在，开发产品总想着让用户用得顺手。生活里爱观察、爱琢磨，相信点滴积累的力量，用真诚态度对待每一次尝试，在探索中慢慢成长。</p>
+        <p>性格外向但不失沉稳，既能快速融入团队协作，也能独立承担核心任务。空闲时喜欢研究新的编程技巧，偶尔也会剪辑短视频记录生活。</p>
+        <button class="back-btn" onclick="showState('home')">返回首页</button>
+    </div>
+
+    <div id="works" class="content-area">
+        <h2>作品</h2>
+        <p>以下是我的作品分类，点击可跳转至对应内容：</p>
+        <div class="works-subgrid">
+            <div class="work-card" onclick="window.location.href='c.html'">
+                <h3>倒数日</h3>
+                <p>本产品有专用软件，可在联系方式中添加作者获取</p>
+            </div>
+            <div class="work-card" onclick="window.location.href='d.html'">
+                <h3>Unicode 加密工具</h3>
+                <p>此款加密工具采用市面上比较常见的加密方式，丢给人工智能都是可以识别出来的，可以使用的方面我就不多说了</p>
+            </div>
+            <div class="work-card" onclick="window.location.href='j.html'">
+                <h3>待添加</h3>
+                <p>作品内容描述</p>
+            </div>
+            <div class="work-card" onclick="window.location.href='j.html'">
+                <h3>待添加</h3>
+                <p>作品内容描述</p>
+            </div>
+        </div>
+        <button class="back-btn" onclick="showState('home')">返回首页</button>
+    </div>
+
+    <div id="contact" class="content-area">
+        <h2>联系</h2>
+        <p>微信: chengjiahuicjh254</p>
+        <p>QQ: 2318879010 或 3074702258</p>
+        <p>邮箱: 3074702258@qq.com</p>
+        <button class="back-btn" onclick="showState('home')">返回首页</button>
+    </div>
+
+    <div id="skills" class="content-area">
+        <h2>技能</h2>
+        <ul>
+            <li><strong>核心技能</strong>: 辅助编写或修改软件代码</li>
+            <li><strong>辅助技能</strong>：UI设计基础、HTML、短视频剪辑</li>
+            <li><strong>工具掌握</strong>: 会使用WebCat、AndLua+等编辑软件</li>
+        </ul>
+        <button class="back-btn" onclick="showState('home')">返回首页</button>
+    </div>
+
+    <!-- 访问计数器 -->
+    <div class="visit-counter" id="visitCounter">
+        本页已被访问 <span style="color: #48dbfb; font-weight: 600;">0</span> 次（仅当前设备统计）
+    </div>
+
+    <!-- 底部备案信息 -->
+    <div class="footer-record">
+        <span class="record-link">
+            <span class="record-icon">备</span>
+            陕ICP备10131102号-1
+        </span>
+        <span class="record-link">
+            <span class="record-icon">公</span>
+            陕公安备61016220251220号
+        </span>
+        <p style="margin-top: 10px; font-size: 12px; color: #999;">© 2025 程佳辉 版权所有</p>
+    </div>
+
+    <script>
+        // 1. 头像三次点击跳转
+        const avatar = document.getElementById('avatar');
+        let clickCount = 0;
+        let clickTimer = null;
+        const targetUrl = "a.html";
+        avatar.addEventListener('click', () => {
+            clickCount++;
+            clearTimeout(clickTimer);
+            clickTimer = setTimeout(() => clickCount = 0, 3000);
+            if (clickCount === 3) {
+                avatar.style.transform = "scale(0.95)";
+                setTimeout(() => avatar.style.transform = "scale(1)", 100);
+                setTimeout(() => window.location.href = targetUrl, 150);
+                clickCount = 0;
+            }
+        });
+
+        // 2. 音乐卡片跳转
+        const musicCard = document.getElementById('music-card');
+        const musicTargetUrl = 'm.html';
+        musicCard.addEventListener('click', () => {
+            musicCard.style.transform = 'scale(0.95)';
+            setTimeout(() => document.body.classList.add('fade-to-music'), 150);
+            setTimeout(() => window.location.href = musicTargetUrl, 750);
+        });
+
+        // 3. 建议留言卡片：点击直接跳转腾讯问卷
+        const suggestCard = document.getElementById('suggest-card');
+        const surveyUrl = 'https://wj.qq.com/s2/24102021/c843/';
+        suggestCard.addEventListener('click', () => {
+            suggestCard.style.transform = 'scale(0.95)';
+            setTimeout(() => window.location.href = surveyUrl, 150);
+        });
+
+        // 4. 页面状态控制
+        const pageStates = { home: 'home', about: 'about', skills: 'skills', works: 'works', contact: 'contact' };
+        let currentState = pageStates.home;
+        const profileContainer = document.querySelector('.profile-container');
+        const sectionGrid = document.querySelector('.section-grid');
+        const sections = document.querySelectorAll('.content-area');
+        const cards = document.querySelectorAll('.section-card[data-target]');
+        const skillBadge = document.getElementById('skillBadge');
+        history.replaceState({ state: pageStates.home }, '首页');
+
+        function showState(state) {
+            if (state === pageStates.home && currentState !== pageStates.home) {
+                const currentSection = document.getElementById(currentState);
+                if (currentSection) {
+                    currentSection.classList.remove('active');
+                    setTimeout(() => {
+                        currentSection.style.display = 'none';
+                        profileContainer.style.display = 'block';
+                        sectionGrid.style.display = 'grid';
+                        currentState = state;
+                    }, 300);
+                }
+                return;
+            }
+
+            if (state === pageStates.skills) {
+                setTimeout(() => {
+                    skillBadge.style.right = '20px';
+                    setTimeout(() => skillBadge.style.right = '-150px', 3000);
+                }, 600);
+            }
+
+            profileContainer.style.display = 'none';
+            sectionGrid.style.display = 'none';
+            sections.forEach(section => {
+                section.style.display = 'none';
+                section.classList.remove('active');
+            });
+
+            const targetSection = document.getElementById(state);
+            if (targetSection) {
+                targetSection.style.display = 'block';
+                setTimeout(() => targetSection.classList.add('active'), 10);
+                currentState = state;
+                history.pushState({ state: state }, state, `#${state}`);
+            }
+        }
+
+        cards.forEach(card => {
+            card.addEventListener('click', () => {
+                const targetState = card.getAttribute('data-target');
+                showState(targetState);
+            });
+        });
+
+        window.addEventListener('popstate', (e) => {
+            if (e.state && e.state.state) {
+                showState(e.state.state);
+                if (e.state.state === pageStates.skills) {
+                    setTimeout(() => {
+                        skillBadge.style.right = '20px';
+                        setTimeout(() => skillBadge.style.right = '-150px', 3000);
+                    }, 600);
+                }
+            } else {
+                showState(pageStates.home);
+            }
+        });
+
+        // 5. 名字hover变色
+        const userName = document.getElementById('userName');
+        const nameColors = ['#48dbfb', '#1dd1a1', '#00cec9'];
+        let colorIndex = 0;
+        userName.addEventListener('mouseenter', () => {
+            userName.style.color = nameColors[colorIndex];
+            colorIndex = (colorIndex + 1) % nameColors.length;
+        });
+        userName.addEventListener('mouseleave', () => {
+            userName.style.color = '#2d3436';
+        });
+
+        // 6. 语音播放功能：自动识别音频时间（核心修改）
+        const voiceBtn = document.getElementById('voiceBtn');
+        const voiceIcon = document.getElementById('voiceIcon');
+        const voiceCountdown = document.getElementById('voiceCountdown');
+        const audio = new Audio('https://audio.jukehost.co.uk/nJJyT1gQ6gmHQpFLrv2RmvMEjsm2CNa6');
+        let isPlaying = false;
+        let timeUpdateTimer = null;
+
+        // 时间格式化函数
+        function formatTime(seconds) {
+            seconds = Math.max(0, Math.floor(seconds));
+            const min = Math.floor(seconds / 60);
+            const sec = seconds % 60;
+            return `${min < 10 ? '0' + min : min}:${sec < 10 ? '0' + sec : sec}`;
+        }
+
+        // 音频加载完成后自动获取总时长
+        audio.addEventListener('loadedmetadata', () => {
+            const totalDuration = audio.duration; // 自动识别音频总时长
+            voiceCountdown.textContent = formatTime(totalDuration);
+        });
+
+        // 音频加载失败处理
+        audio.addEventListener('error', () => {
+            voiceCountdown.textContent = '加载失败';
+            alert('音频文件加载失败，请检查链接或联系作者');
+        });
+
+        // 语音按钮点击事件
+        voiceBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                // 暂停逻辑
+                audio.pause();
+                clearInterval(timeUpdateTimer);
+                voiceIcon.classList.remove('pause');
+                voiceIcon.classList.add('play');
+                voiceBtn.classList.remove('playing');
+            } else {
+                // 播放逻辑
+                audio.play().then(() => {
+                    voiceIcon.classList.remove('play');
+                    voiceIcon.classList.add('pause');
+                    voiceBtn.classList.add('playing');
+                    // 实时更新剩余时间
+                    timeUpdateTimer = setInterval(() => {
+                        const remainingTime = audio.duration - audio.currentTime;
+                        if (remainingTime <= 0) {
+                            // 播放结束重置
+                            clearInterval(timeUpdateTimer);
+                            audio.pause();
+                            audio.currentTime = 0; // 重置播放进度
+                            voiceIcon.classList.remove('pause');
+                            voiceIcon.classList.add('play');
+                            voiceBtn.classList.remove('playing');
+                            voiceCountdown.textContent = formatTime(audio.duration);
+                            return;
+                        }
+                        voiceCountdown.textContent = formatTime(remainingTime);
+                    }, 300);
+                }).catch(() => {
+                    alert('音频播放失败，请尝试刷新页面或联系作者');
+                });
+            }
+            isPlaying = !isPlaying;
+        });
+
+        // 页面加载时预加载音频
+        document.body.addEventListener('click', () => {
+            if (!isPlaying && audio.paused) {
+                audio.load().catch(() => {});
+            }
+        }, { once: true });
+
+        // 7. 访问计数器（本地存储）
+        function initVisitCounter() {
+            const counterKey = 'pageVisitCount';
+            let visitCount = localStorage.getItem(counterKey) ? parseInt(localStorage.getItem(counterKey)) : 0;
+            visitCount++;
+            localStorage.setItem(counterKey, visitCount);
+            document.querySelector('#visitCounter span').textContent = visitCount;
+        }
+
+        // 8. 页面加载初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            initVisitCounter();
+            
+            const hash = window.location.hash.substring(1);
+            if (hash && Object.values(pageStates).includes(hash)) {
+                showState(hash);
+                history.replaceState({ state: hash }, hash, `#${hash}`);
+                if (hash === pageStates.skills) {
+                    setTimeout(() => {
+                        skillBadge.style.right = '20px';
+                        setTimeout(() => skillBadge.style.right = '-150px', 3000);
+                    }, 600);
+                }
+            }
+
+            // 初始化音频加载
+            audio.load().catch(() => {
+                voiceCountdown.textContent = '加载失败';
+            });
+        });
+    </script>
+</body>
+</html>
