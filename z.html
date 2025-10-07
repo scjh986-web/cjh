@@ -1,0 +1,494 @@
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音乐播放器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: linear-gradient(135deg, #3a86ff 0%, #8338ec 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .player-title {
+            color: #fff;
+            font-size: 28px;
+            margin-bottom: 25px;
+            text-shadow: 0 3px 8px rgba(0,0,0,0.2);
+        }
+        .music-container {
+            width: 100%;
+            max-width: 600px;
+            min-height: 420px;
+            background: #fff;
+            border-radius: 24px;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+        }
+        .music-list {
+            list-style: none;
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 22px;
+            padding-right: 8px;
+        }
+        .music-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        .music-list::-webkit-scrollbar-track {
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+        .music-list::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 4px;
+        }
+        .music-item {
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+        .music-item:hover {
+            background: #f0f4f8;
+            border-color: #d1d9e6;
+            transform: translateX(3px);
+        }
+        .music-item.active {
+            background: #e0f2fe;
+            border-color: #38bdf8;
+            color: #0284c7;
+            font-weight: 500;
+        }
+        .music-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 70%;
+            font-size: 16px;
+        }
+        .music-time {
+            font-size: 14px;
+            color: #666;
+        }
+        .player-controls {
+            background: #f0f7ff;
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+        .control-btns {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 28px;
+        }
+        .control-btn {
+            width: 52px;
+            height: 52px;
+            border-radius: 50%;
+            border: none;
+            background: #0284c7;
+            color: #fff;
+            font-size: 22px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(2, 132, 199, 0.2);
+        }
+        .control-btn:hover {
+            background: #0369a1;
+            transform: scale(1.08);
+            box-shadow: 0 6px 12px rgba(2, 132, 199, 0.3);
+        }
+        .play-btn {
+            width: 68px;
+            height: 68px;
+            font-size: 28px;
+            background: #0369a1;
+        }
+        .progress-wrap {
+            width: 100%;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e7ff;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+        }
+        .progress-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 0%;
+            background: #0284c7;
+            border-radius: 4px;
+            transition: width 0.1s linear;
+        }
+        .time-display {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #666;
+            margin-top: 8px;
+        }
+        .back-home {
+            display: block;
+            margin-top: 30px;
+            padding: 12px 24px;
+            background: #fff;
+            color: #0284c7;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .back-home:hover {
+            background: #f0f7ff;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        .empty-tip {
+            text-align: center;
+            padding: 40px 0;
+            color: #666;
+            font-size: 18px;
+            background: #f8f9fa;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1 class="player-title">音乐播放器</h1>
+    <div class="music-container">
+        <ul class="music-list" id="musicList"></ul>
+        <div class="player-controls">
+            <div class="control-btns">
+                <button class="control-btn loop-btn" id="loopBtn" title="列表循环">🔄</button>
+                <button class="control-btn prev-btn" id="prevBtn">◀</button>
+                <button class="control-btn play-btn" id="playBtn">▶</button>
+                <button class="control-btn next-btn" id="nextBtn">▶</button>
+            </div>
+            <div class="progress-wrap">
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="time-display">
+                    <span id="currentTime">00:00</span>
+                    <span id="totalTime">--:--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <a href="index.html" class="back-home">返回首页</a>
+
+    <script>
+        // 音乐数据
+        const musicListData = [
+            { title: "去找你妹妹吧", src: "https://audio.jukehost.co.uk/AiHrMeTcSKqe3hprNOOjZoopV53h2Nza" },
+            { title: "Tikolin Purre(完整版)", src: "https://audio.jukehost.co.uk/bNPUZLinSUeDbFBVG6BZtRGC3V6nRMj8" },
+            { title: "开往春天的地铁", src: "https://audio.jukehost.co.uk/xPF8kXt11lpdYjESuJ91G0aCs8DRRKg3" },
+            { title: "可我只是海", src: "https://audio.jukehost.co.uk/p4Xz3DPvj7xZHCanTWfsSOiD9rXRMe8u" },
+            { title: "恋人", src: "https://audio.jukehost.co.uk/CF2QDF8i69GmyoqkbjSXXNOJX432jHsO" },
+            { title: "我离开了北方", src: "https://audio.jukehost.co.uk/7DU81TGOSSWtPzNkICGCzVGBVvnzX1dC" },
+            { title: "纯音乐", src: "https://audio.jukehost.co.uk/CbxiQzllFo1JrlBEG6rGj5wETtQEXgfS" },
+            { title: "转身离开", src: "https://audio.jukehost.co.uk/RnRY7SBMqYN7eKo5zm9ldPir0EtUuOf6" },
+            { title: "4.55", src: "https://audio.jukehost.co.uk/qS1WdNgOymFDdoaG71E4MsHwIyTR9A5T" },
+            { title: "Savage Love", src: "https://audio.jukehost.co.uk/4cpT2il2kiEAYqRPEgTuzo7m1DCLo8ZE" },
+            { title: "沉溺", src: "https://audio.jukehost.co.uk/J20KmhLH9m66PThKiwXOEOcyJmcIg3VP" },
+            { title: "我已经牵你手", src: "https://audio.jukehost.co.uk/WjmKFTK3go3AXfnGXVmh4jSeYhGtK71h" },
+            { title: "武家坡", src: "https://audio.jukehost.co.uk/rBQqWST2aQNn3fxAqNTRVy8DewVlc4Th" },
+            { title: "心如止水", src: "https://audio.jukehost.co.uk/GqRYNrT2pkg7EYvcfcwjWCUfsGIDsMHz" },
+            { title: "终于", src: "https://audio.jukehost.co.uk/8tomXKBfn17ebxmiBBGPgBnY6QniJd0P" },
+            { title: "晴天(从前有人爱你很久)", src: "https://audio.jukehost.co.uk/b1iDoPgddrCxI89xAB5pwMnSMPEYwvU3" },
+            { title: "歌曲1", src: "https://audio.jukehost.co.uk/RTHgobHOJn2qxbljcktBXcmpDml2iWfg" },
+            { title: "歌曲2", src: "https://audio.jukehost.co.uk/JxFObG9UdNDICloJwP9LO5Ubt8wFQ4VO" },
+        ];
+
+        // DOM元素
+        const audio = new Audio();
+        const musicList = document.getElementById('musicList');
+        const playBtn = document.getElementById('playBtn');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const loopBtn = document.getElementById('loopBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const currentTimeEl = document.getElementById('currentTime');
+        const totalTimeEl = document.getElementById('totalTime');
+
+        // 状态变量
+        let currentIndex = 0;
+        let loopMode = 'list'; // list=列表循环, single=单曲循环, random=随机循环
+        let isPlaying = false;
+
+        // 页面加载初始化
+        window.onload = function() {
+            renderMusicList();
+            loadMusic(currentIndex);
+            bindAllEvents();
+        };
+
+        // 1. 渲染音乐列表
+        function renderMusicList() {
+            if (musicListData.length === 0) {
+                musicList.innerHTML = '<li class="empty-tip">暂无音乐</li>';
+                return;
+            }
+
+            musicList.innerHTML = '';
+            musicListData.forEach((music, index) => {
+                const li = document.createElement('li');
+                li.className = `music-item ${index === currentIndex ? 'active' : ''}`;
+                li.dataset.index = index;
+                li.innerHTML = `
+                    <span class="music-name">${music.title}</span>
+                    <span class="music-time" id="time-${index}">--:--</span>
+                `;
+                // 点击列表项播放
+                li.addEventListener('click', () => {
+                    currentIndex = index;
+                    loadMusic(currentIndex);
+                    playMusic();
+                });
+                musicList.appendChild(li);
+
+                // 获取音乐时长
+                const tempAudio = new Audio(music.src);
+                tempAudio.onloadedmetadata = function() {
+                    document.getElementById(`time-${index}`).textContent = formatTime(tempAudio.duration);
+                };
+            });
+        }
+
+        // 2. 加载指定音乐
+        function loadMusic(index) {
+            // 重置播放状态
+            audio.pause();
+            isPlaying = false;
+            playBtn.textContent = '▶';
+            progressFill.style.width = '0%';
+            currentTimeEl.textContent = '00:00';
+            totalTimeEl.textContent = '--:--';
+
+            // 加载音乐源
+            const targetMusic = musicListData[index];
+            audio.src = targetMusic.src;
+
+            // 加载完成后更新总时长和列表选中状态
+            audio.onloadeddata = function() {
+                if (!isNaN(audio.duration)) {
+                    totalTimeEl.textContent = formatTime(audio.duration);
+                }
+                updateActiveItem(index);
+            };
+
+            // 加载失败处理
+            audio.onerror = function() {
+                alert(`《${targetMusic.title}》加载失败，请检查链接`);
+                playNextMusic();
+            };
+        }
+
+        // 3. 播放音乐
+        function playMusic() {
+            audio.play().then(() => {
+                isPlaying = true;
+                playBtn.textContent = '■';
+            }).catch(err => {
+                console.error('播放失败:', err);
+                alert('播放失败，可能是浏览器音频限制');
+            });
+        }
+
+        // 4. 暂停音乐
+        function pauseMusic() {
+            audio.pause();
+            isPlaying = false;
+            playBtn.textContent = '▶';
+        }
+
+        // 5. 上一首音乐
+        function playPrevMusic() {
+            if (loopMode === 'random') {
+                // 随机循环：生成不同于当前的随机索引
+                let randomIdx;
+                do {
+                    randomIdx = Math.floor(Math.random() * musicListData.length);
+                } while (randomIdx === currentIndex && musicListData.length > 1);
+                currentIndex = randomIdx;
+            } else {
+                // 列表/单曲循环：正常上一首
+                currentIndex = (currentIndex - 1 + musicListData.length) % musicListData.length;
+            }
+            loadMusic(currentIndex);
+            playMusic();
+        }
+
+        // 6. 下一首音乐
+        function playNextMusic() {
+            if (loopMode === 'random') {
+                // 随机循环：生成不同于当前的随机索引
+                let randomIdx;
+                do {
+                    randomIdx = Math.floor(Math.random() * musicListData.length);
+                } while (randomIdx === currentIndex && musicListData.length > 1);
+                currentIndex = randomIdx;
+            } else {
+                // 列表/单曲循环：正常下一首
+                currentIndex = (currentIndex + 1) % musicListData.length;
+            }
+            loadMusic(currentIndex);
+            playMusic();
+        }
+
+        // 7. 切换循环模式
+        function toggleLoopMode() {
+            switch (loopMode) {
+                case 'list':
+                    loopMode = 'single';
+                    loopBtn.textContent = '🔂';
+                    loopBtn.title = '单曲循环';
+                    break;
+                case 'single':
+                    loopMode = 'random';
+                    loopBtn.textContent = '🔀';
+                    loopBtn.title = '随机循环';
+                    break;
+                case 'random':
+                    loopMode = 'list';
+                    loopBtn.textContent = '🔄';
+                    loopBtn.title = '列表循环';
+                    break;
+            }
+        }
+
+        // 8. 音乐结束处理（核心：时间停止时立即执行循环）
+        function handleMusicEnd(){
+            // 强制重置当前时间（避免时间停留在结束位置）
+            audio.currentTime = 0;
+            // 根据当前循环模式执行对应逻辑，无延迟立即触发
+            switch (loopMode) {
+                case 'single':
+                    // 单曲循环：立即重新播放当前歌曲
+                    playMusic();
+                    break;
+                case 'random':
+                    // 随机循环：立即加载并播放随机歌曲
+                    playNextMusic();
+                    break;
+                case 'list':
+                    // 列表循环：立即加载并播放下一首歌曲
+                    playNextMusic();
+                    break;
+            }
+        }
+
+        // 9. 实时校验音乐是否结束（双重保障：防止原生ended事件未触发）
+        function checkMusicEnd() {
+            // 当音乐处于播放状态，且当前时间接近总时长（误差≤0.1秒，视为时间停止）
+            if (isPlaying && !isNaN(audio.duration) && audio.currentTime >= audio.duration - 0.1) {
+                handleMusicEnd();
+            }
+        }
+
+        // 10. 更新列表选中状态
+        function updateActiveItem(activeIndex) {
+            document.querySelectorAll('.music-item').forEach((item, index) => {
+                item.classList.toggle('active', index === activeIndex);
+            });
+        }
+
+        // 11. 时间格式化（秒转 "分:秒" 格式）
+        function formatTime(seconds) {
+            if (isNaN(seconds) || seconds < 0) return '--:--';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            // 补零确保格式统一（如 1:2 → 01:02）
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // 12. 绑定所有交互事件
+        function bindAllEvents() {
+            // 播放/暂停按钮
+            playBtn.addEventListener('click', () => {
+                isPlaying ? pauseMusic() : playMusic();
+            });
+
+            // 上一首按钮
+            prevBtn.addEventListener('click', playPrevMusic);
+
+            // 下一首按钮
+            nextBtn.addEventListener('click', playNextMusic);
+
+            // 循环模式切换按钮
+            loopBtn.addEventListener('click', toggleLoopMode);
+
+            // 进度条点击跳转
+            progressBar.addEventListener('click', (e) => {
+                const clickRatio = e.offsetX / progressBar.offsetWidth;
+                if (!isNaN(audio.duration)) {
+                    // 计算并设置目标播放时间
+                    audio.currentTime = clickRatio * audio.duration;
+                    // 同步更新进度条显示
+                    progressFill.style.width = `${clickRatio * 100}%`;
+                }
+            });
+
+            // 实时更新进度条和当前时间 + 校验音乐是否结束
+            audio.addEventListener('timeupdate', () => {
+                // 更新当前播放时间显示
+                currentTimeEl.textContent = formatTime(audio.currentTime);
+                // 同步更新进度条宽度
+                if (!isNaN(audio.duration)) {
+                    const progressRatio = (audio.currentTime / audio.duration) * 100;
+                    progressFill.style.width = `${progressRatio}%`;
+                }
+                // 校验音乐是否已结束（时间停止）
+                checkMusicEnd();
+            });
+
+            // 原生音乐结束事件（第一层保障）
+            audio.addEventListener('ended', handleMusicEnd);
+
+            // 监听音频播放状态变化（确保按钮显示与实际状态一致）
+            audio.addEventListener('play', () => {
+                isPlaying = true;
+                playBtn.textContent = '■';
+            });
+            audio.addEventListener('pause', () => {
+                isPlaying = false;
+                playBtn.textContent = '▶';
+            });
+        }
+    </script>
+</body>
+</html>
