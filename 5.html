@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>陕西时间</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            min-height: 100vh;
+            color: #fff;
+            font-family: 'Noto Sans SC', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.8s ease;
+        }
+        .day-mode {
+            background: #f8f9fa;
+        }
+        .night-mode {
+            background: url(https://s41.ax1x.com/2025/12/05/pZm3E8I.jpg) no-repeat center center;
+            background-size: cover;
+        }
+        .night-mode::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(18, 18, 24, 0.7);
+            z-index: 0;
+        }
+        .authoritative-title {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 6px 10px;
+            border-radius: 4px;
+            z-index: 10;
+            transition: all 0.8s ease;
+        }
+        .day-mode .authoritative-title {
+            color: rgba(0, 0, 0, 0.8);
+            background: rgba(0,0,0,0.05);
+        }
+        .night-mode .authoritative-title {
+            color: rgba(255,255,255,0.9);
+            background: rgba(255,255,255,0.1);
+        }
+        .header {
+            font-size: clamp(1rem, 3vw, 1.2rem);
+            margin-bottom: 20px;
+            z-index: 1;
+            transition: color 0.8s ease;
+        }
+        .day-mode .header {
+            color: rgba(0, 0, 0, 0.8);
+        }
+        .night-mode .header {
+            color: rgba(255,255,255,0.9);
+        }
+        .time-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            z-index: 1;
+        }
+        .time-card {
+            border-radius: 12px;
+            padding: 15px 25px;
+            font-size: clamp(2.5rem, 10vw, 5rem);
+            font-weight: 700;
+            min-width: 80px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            transition: all 0.8s ease;
+        }
+        .day-mode .time-card {
+            background: rgba(0, 0, 0, 0.05);
+            color: rgba(0, 0, 0, 0.85);
+        }
+        .night-mode .time-card {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        .colon {
+            font-size: clamp(2.5rem, 10vw, 5rem);
+            line-height: 1.2;
+            z-index: 1;
+            transition: color 0.8s ease;
+        }
+        .day-mode .colon {
+            color: rgba(0, 0, 0, 0.5);
+        }
+        .night-mode .colon {
+            color: rgba(255,255,255,0.7);
+        }
+        .date-info {
+            text-align: center;
+            font-size: clamp(0.9rem, 2vw, 1rem);
+            z-index: 1;
+            transition: color 0.8s ease;
+            line-height: 1.6;
+        }
+        .day-mode .date-info {
+            color: rgba(0, 0, 0, 0.6);
+        }
+        .night-mode .date-info {
+            color: rgba(255,255,255,0.7);
+        }
+        .countdown-highlight {
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body class="night-mode">
+    <div class="authoritative-title">中国科学院国家授时中心提供</div>
+    <div class="header">中国北京时间 UTC+8</div>
+    <div class="time-container">
+        <div class="time-card" id="hour">23</div>
+        <div class="colon">:</div>
+        <div class="time-card" id="minute">48</div>
+        <div class="colon">:</div>
+        <div class="time-card" id="second">49</div>
+    </div>
+    <div class="date-info" id="date">2025-12-05 星期五<br>距离陕西日出还有07小时32分<br>日出：07:31 日落：17:31</div>
+    <!-- 引入SunCalc库，保证日出日落时间精准 -->
+    <script src="https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.min.js"></script>
+    <script>
+        const bodyEl = document.body;
+        const hourEl = document.getElementById('hour');
+        const minuteEl = document.getElementById('minute');
+        const secondEl = document.getElementById('second');
+        const dateEl = document.getElementById('date');
+        // 陕西商洛商州精准坐标
+        const SHANGZHOU = { lat: 33.87, lng: 109.93 };
+        // 本地缓存key前缀
+        const CACHE_KEY_PREFIX = 'shanxi_sun_time_';
+
+        // 格式化数字为两位数
+        function padZero(num) {
+            return num.toString().padStart(2, '0');
+        }
+
+        // 获取当日日期标识（用于缓存key）
+        function getDateKey(date) {
+            const year = date.getFullYear();
+            const month = padZero(date.getMonth() + 1);
+            const day = padZero(date.getDate());
+            return `${year}${month}${day}`;
+        }
+
+        // 从本地缓存获取日出日落时间
+        function getSunTimeFromCache(dateKey) {
+            const cacheStr = localStorage.getItem(`${CACHE_KEY_PREFIX}${dateKey}`);
+            if (!cacheStr) return null;
+            try {
+                const cacheData = JSON.parse(cacheStr);
+                // 校验缓存数据完整性
+                if (cacheData.sunrise && cacheData.sunset && cacheData.sunriseTotalMin !== undefined) {
+                    return cacheData;
+                }
+                return null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // 将日出日落时间存入本地缓存
+        function saveSunTimeToCache(dateKey, sunTime) {
+            try {
+                localStorage.setItem(`${CACHE_KEY_PREFIX}${dateKey}`, JSON.stringify(sunTime));
+            } catch (e) {
+                console.warn('本地缓存存储失败', e);
+            }
+        }
+
+        // 精准获取商洛商州当日日出日落时间（优先从缓存读取）
+        function getShangzhouSunTime(now) {
+            const dateKey = getDateKey(now);
+            // 先尝试读取缓存
+            const cacheData = getSunTimeFromCache(dateKey);
+            if (cacheData) {
+                console.log('从本地缓存读取日出日落数据');
+                return cacheData;
+            }
+
+            // 缓存未命中，调用SunCalc计算
+            console.log('缓存未命中，计算日出日落数据');
+            const times = SunCalc.getTimes(now, SHANGZHOU.lat, SHANGZHOU.lng);
+            // 转换为北京时间并格式化
+            const formatTime = (date) => {
+                const hour = padZero(date.getHours());
+                const minute = padZero(date.getMinutes());
+                return { timeStr: `${hour}:${minute}`, totalMin: date.getHours() * 60 + date.getMinutes() };
+            };
+            const sunrise = formatTime(times.sunrise);
+            const sunset = formatTime(times.sunset);
+            const sunTime = {
+                sunrise: sunrise.timeStr,
+                sunset: sunset.timeStr,
+                sunriseTotalMin: sunrise.totalMin,
+                sunsetTotalMin: sunset.totalMin,
+                sunrise1hLaterMin: sunrise.totalMin + 60,
+                sunset1hLaterMin: sunset.totalMin + 60
+            };
+            // 存入缓存
+            saveSunTimeToCache(dateKey, sunTime);
+            return sunTime;
+        }
+
+        // 计算精准倒计时
+        function calcCountdown(nowTotalMin, targetTotalMin, isNextDay = false) {
+            let diffMin = targetTotalMin - nowTotalMin;
+            if (isNextDay) diffMin += 24 * 60;
+            const hours = Math.floor(diffMin / 60);
+            const minutes = diffMin % 60;
+            return `${padZero(hours)}小时${padZero(minutes)}分`;
+        }
+
+        // 严格按阶段生成文案
+        function getCountdownText(now, sunTime) {
+            const nowTotalMin = now.getHours() * 60 + now.getMinutes();
+            const { sunriseTotalMin, sunsetTotalMin, sunrise1hLaterMin, sunset1hLaterMin } = sunTime;
+
+            if (nowTotalMin < sunriseTotalMin) {
+                return `<span class="countdown-highlight">距离陕西日出还有${calcCountdown(nowTotalMin, sunriseTotalMin)}</span>`;
+            } else if (nowTotalMin >= sunriseTotalMin && nowTotalMin < sunrise1hLaterMin) {
+                return `<span class="countdown-highlight">陕西已日出，距离日落还有${calcCountdown(nowTotalMin, sunsetTotalMin)}</span>`;
+            } else if (nowTotalMin >= sunrise1hLaterMin && nowTotalMin < sunsetTotalMin) {
+                return `<span class="countdown-highlight">距离陕西日落还有${calcCountdown(nowTotalMin, sunsetTotalMin)}</span>`;
+            } else if (nowTotalMin >= sunsetTotalMin && nowTotalMin < sunset1hLaterMin) {
+                return `<span class="countdown-highlight">陕西已日落，距离次日日出还有${calcCountdown(nowTotalMin, sunriseTotalMin, true)}</span>`;
+            } else {
+                return `<span class="countdown-highlight">距离陕西日出还有${calcCountdown(nowTotalMin, sunriseTotalMin, true)}</span>`;
+            }
+        }
+
+        // 切换日夜模式
+        function toggleDayNightMode(now, sunTime) {
+            const nowTotalMin = now.getHours() * 60 + now.getMinutes();
+            if (nowTotalMin >= sunTime.sunriseTotalMin && nowTotalMin < sunTime.sunsetTotalMin) {
+                bodyEl.classList.add('day-mode');
+                bodyEl.classList.remove('night-mode');
+            } else {
+                bodyEl.classList.add('night-mode');
+                bodyEl.classList.remove('day-mode');
+            }
+        }
+
+        // 实时更新界面
+        function updateClock() {
+            const now = new Date();
+            const hour = padZero(now.getHours());
+            const minute = padZero(now.getMinutes());
+            const second = padZero(now.getSeconds());
+            const sunTime = getShangzhouSunTime(now);
+
+            toggleDayNightMode(now, sunTime);
+            hourEl.textContent = hour;
+            minuteEl.textContent = minute;
+            secondEl.textContent = second;
+
+            // 组装最终文案，确保格式固定
+            const year = now.getFullYear();
+            const month = padZero(now.getMonth() + 1);
+            const day = padZero(now.getDate());
+            const week = ['日', '一', '二', '三', '四', '五', '六'][now.getDay()];
+            const countdownText = getCountdownText(now, sunTime);
+            dateEl.innerHTML = `${year}-${month}-${day} 星期${week}<br>${countdownText}<br>日出：${sunTime.sunrise} 日落：${sunTime.sunset}`;
+        }
+
+        // 初始化并每秒更新
+        updateClock();
+        setInterval(updateClock, 1000);
+    </script>
+</body>
+</html>
