@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>中国陕西时间</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      min-height: 100vh; 
+      color: #fff; 
+      font-family: 'Noto Sans SC', sans-serif; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center; 
+      padding: 2vw; 
+      position: relative; 
+      overflow: hidden; 
+      transition: all 0.8s ease; 
+    }
+    /* 电脑端占屏优化：最小宽度1200px时强制占屏≥75% */
+    @media (min-width: 1200px) { 
+      body { padding: 0; width: 100vw; height: 100vh; } 
+      .container { width: 75vw; height: 75vh; min-width: 900px; min-height: 675px; display: flex; flex-direction: column; align-items: center; justify-content: center; } 
+    }
+    /* 平板端（768-1199px）占屏60% */
+    @media (min-width: 768px) and (max-width: 1199px) { 
+      .container { width: 60vw; min-width: 600px; display: flex; flex-direction: column; align-items: center; justify-content: center; } 
+    }
+    /* 移动端（<768px）自适应 */
+    @media (max-width: 767px) { 
+      .container { width: 100%; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; } 
+    }
+    .day-mode { background: linear-gradient(120deg, #e0f7fa, #f5fafe); }
+    .night-mode { 
+      background: url(https://s41.ax1x.com/2025/12/05/pZm3E8I.jpg) no-repeat center center; 
+      background-size: cover; 
+    }
+    .night-mode::before { 
+      content: ''; 
+      position: absolute; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      background: rgba(18, 18, 24, 0.7); 
+      z-index: 0; 
+    }
+    .authoritative-title { 
+      position: absolute; 
+      top: 2vw; 
+      left: 2vw; 
+      font-size: clamp(1.2rem, 2vw, 1.5rem); 
+      font-weight: 600; 
+      padding: 8px 15px; 
+      border-radius: 6px; 
+      z-index: 10; 
+      transition: all 0.8s ease; 
+    }
+    .day-mode .authoritative-title { color: rgba(0, 0, 0, 0.8); background: rgba(0,0,0,0.05); }
+    .night-mode .authoritative-title { color: rgba(255,255,255,0.9); background: rgba(255,255,255,0.1); }
+    .header { 
+      font-size: clamp(1.5rem, 3vw, 2rem); 
+      margin-bottom: 3vw; 
+      z-index: 1; 
+      transition: color 0.8s ease; 
+    }
+    .day-mode .header { color: rgba(0, 0, 0, 0.8); }
+    .night-mode .header { color: rgba(255,255,255,0.9); }
+    .time-container { 
+      display: flex; 
+      gap: clamp(15px, 3vw, 30px); 
+      margin-bottom: 3vw; 
+      z-index: 1; 
+    }
+    .time-card { 
+      border-radius: 15px; 
+      padding: clamp(20px, 5vw, 40px); 
+      font-size: clamp(4rem, 15vw, 10rem); 
+      font-weight: 700; 
+      min-width: clamp(100px, 12vw, 200px); 
+      text-align: center; 
+      backdrop-filter: blur(15px); 
+      transition: all 0.8s ease; 
+      box-shadow: 0 8px 30px rgba(0,0,0,0.15); 
+    }
+    .day-mode .time-card { background: rgba(255,255,255,0.8); color: rgba(0, 0, 0, 0.85); }
+    .night-mode .time-card { background: rgba(255,255,255,0.1); color: #fff; }
+    .colon { 
+      font-size: clamp(4rem, 15vw, 10rem); 
+      line-height: 1.2; 
+      z-index: 1; 
+      transition: color 0.8s ease; 
+      animation: blink 1s infinite; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .day-mode .colon { color: rgba(0, 0, 0, 0.5); }
+    .night-mode .colon { color: rgba(255,255,255,0.7); }
+    .date-info { 
+      text-align: center; 
+      font-size: clamp(1.2rem, 2.5vw, 1.8rem); 
+      z-index: 1; 
+      transition: color 0.8s ease; 
+      line-height: 2; 
+      padding: 15px 30px; 
+      border-radius: 12px; 
+      backdrop-filter: blur(8px); 
+      max-width: 100%; 
+    }
+    .day-mode .date-info { color: rgba(0, 0, 0, 0.6); background: rgba(0,0,0,0.03); }
+    .night-mode .date-info { color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.08); }
+    /* 小屏幕特殊适配 */
+    @media (max-width: 375px) { 
+      .time-card { padding: 10px 15px; min-width: 60px; font-size: clamp(2.5rem, 12vw, 4rem); } 
+      .colon { font-size: clamp(2.5rem, 12vw, 4rem); } 
+      .authoritative-title { font-size: 1rem; top: 10px; left: 10px; padding: 6px 10px; } 
+    }
+  </style>
+</head>
+<body class="day-mode">
+  <div class="authoritative-title">中国科学院国家授时中心提供</div>
+  <div class="container">
+    <h1 class="header">中国陕西时间</h1>
+    <div class="time-container">
+      <div class="time-card" id="hour">23</div>
+      <div class="colon">:</div>
+      <div class="time-card" id="minute">48</div>
+      <div class="colon">:</div>
+      <div class="time-card" id="second">49</div>
+    </div>
+    <div class="date-info" id="date">2025-12-05 星期五</div>
+  </div>
+
+  <script>
+    const bodyEl = document.body;
+    const hourEl = document.getElementById('hour');
+    const minuteEl = document.getElementById('minute');
+    const secondEl = document.getElementById('second');
+    const dateEl = document.getElementById('date');
+
+    // 陕西商洛商州精准坐标（用于日夜切换计算）
+    const SHANGZHOU = { lat: 33.8724, lng: 109.9336 };
+    // 格式化数字为两位数
+    function padZero(num) {
+      return num.toString().padStart(2, '0');
+    }
+
+    // 核心：基于日出日落时间切换日夜模式（保留原逻辑，仅用于模式切换）
+    function toggleDayNightMode(now) {
+      const utcNow = new Date(now.getTime() - now.getTimezoneOffset() * 60 * 1000);
+      const times = SunCalc.getTimes(utcNow, SHANGZHOU.lat, SHANGZHOU.lng);
+      
+      // 转换为北京时间
+      const sunrise = times.sunrise ? new Date(times.sunrise.getTime() + 8 * 60 * 60 * 1000) : null;
+      const sunset = times.sunset ? new Date(times.sunset.getTime() + 8 * 60 * 60 * 1000) : null;
+      
+      const nowHour = now.getHours();
+      // 日出后30分钟至日落前30分钟为日模式，其余为夜模式
+      const isDay = sunrise && sunset 
+        ? nowHour >= (sunrise.getHours() + 0.5) && nowHour < (sunset.getHours() - 0.5)
+        : nowHour >= 6 && nowHour < 18; //  fallback逻辑
+      
+      if (isDay) {
+        bodyEl.classList.add('day-mode');
+        bodyEl.classList.remove('night-mode');
+      } else {
+        bodyEl.classList.add('night-mode');
+        bodyEl.classList.remove('day-mode');
+      }
+    }
+
+    // 实时更新时间、日期和日夜模式
+    function updateClock() {
+      const now = new Date();
+      // 更新时间
+      const hour = padZero(now.getHours());
+      const minute = padZero(now.getMinutes());
+      const second = padZero(now.getSeconds());
+      hourEl.textContent = hour;
+      minuteEl.textContent = minute;
+      secondEl.textContent = second;
+
+      // 更新日期和星期
+      const year = now.getFullYear();
+      const month = padZero(now.getMonth() + 1);
+      const day = padZero(now.getDate());
+      const week = ['日', '一', '二', '三', '四', '五', '六'][now.getDay()];
+      dateEl.textContent = `${year}-${month}-${day} 星期${week}`;
+
+      // 切换日夜模式
+      toggleDayNightMode(now);
+    }
+
+    // 初始化并每秒更新
+    window.addEventListener('load', () => {
+      updateClock();
+      setInterval(updateClock, 1000);
+    });
+  </script>
+</body>
+</html>

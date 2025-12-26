@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>未来风格交互式周期表 - Ultimate Edition</title>
+    <style>
+        :root {
+            --bg-dark: #050505;
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-main: #e0e0e0;
+            --accent-cyan: #00f3ff;
+            --accent-pink: #ff00aa;
+            
+            /* 状态颜色 */
+            --state-solid: #e0e0e0;
+            --state-liquid: #00f3ff;
+            --state-gas: #ff0055;
+            --state-unknown: #666;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Rajdhani', 'Segoe UI', sans-serif; /* 科技感字体 */
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            perspective: 1000px;
+        }
+
+        /* 动态背景 */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: 
+                radial-gradient(circle at 50% 50%, rgba(20, 30, 50, 0.5) 0%, transparent 50%),
+                linear-gradient(0deg, rgba(0,243,255,0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,243,255,0.05) 1px, transparent 1px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
+            animation: moveGrid 20s linear infinite;
+        }
+        @keyframes moveGrid {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(40px); }
+        }
+
+        /* 顶部控制台 */
+        .control-panel {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            background: rgba(20, 20, 25, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            border-radius: 0 0 20px 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-top: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 40px;
+            z-index: 100;
+            width: 90%;
+            max-width: 1200px;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .title-box h1 {
+            font-size: 24px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            background: linear-gradient(90deg, #fff, #00f3ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .search-box input {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid #333;
+            color: #fff;
+            padding: 8px 15px;
+            border-radius: 5px;
+            outline: none;
+            transition: 0.3s;
+        }
+        .search-box input:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
+        }
+
+        .temp-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .temp-control input[type=range] {
+            width: 150px;
+            cursor: pointer;
+        }
+        .temp-display {
+            font-family: 'Courier New', monospace;
+            color: var(--accent-cyan);
+            width: 80px;
+        }
+
+        /* 周期表网格 */
+        .periodic-table {
+            display: grid;
+            grid-template-columns: repeat(18, 64px);
+            grid-template-rows: repeat(10, 72px);
+            gap: 8px;
+            margin-bottom: 50px;
+            padding: 20px;
+            transform-style: preserve-3d;
+        }
+
+        /* 元素卡片 */
+        .element {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 6px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 5px;
+            overflow: hidden;
+            /* 初始状态为不可见，用于JS动画 */
+            opacity: 0; 
+            transform: translateY(20px) scale(0.9);
+        }
+        
+        .element.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        /* 聚光灯效果 */
+        .element::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at var(--x, 50%) var(--y, 50%), rgba(255,255,255,0.15), transparent 80%);
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+
+        .element:hover::before {
+            opacity: 1;
+        }
+
+        .element:hover {
+            transform: scale(1.2) translateZ(20px);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.4);
+            z-index: 10;
+            border-color: var(--accent-cyan);
+            background: rgba(0, 243, 255, 0.1);
+        }
+
+        .element.dimmed {
+            opacity: 0.1;
+            filter: blur(2px);
+            transform: scale(0.9);
+        }
+
+        .element .atomic-number {
+            font-size: 10px;
+            color: #888;
+        }
+
+        .element .symbol {
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            text-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+
+        .element .name {
+            font-size: 9px;
+            text-align: center;
+            opacity: 0.8;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        /* 状态指示点 (固液气) */
+        .state-dot {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--state-solid);
+            box-shadow: 0 0 5px currentColor;
+            transition: background 0.3s;
+        }
+
+        /* 图例 */
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            max-width: 900px;
+            margin-bottom: 40px;
+        }
+
+        .legend-item {
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 15px;
+            background: rgba(255,255,255,0.05);
+            transition: 0.3s;
+            border: 1px solid transparent;
+        }
+
+        .legend-item:hover, .legend-item.active {
+            background: rgba(255,255,255,0.15);
+            border-color: #fff;
+            box-shadow: 0 0 10px currentColor;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+            margin-right: 8px;
+        }
+
+        /* --- 全息弹窗 --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .hologram-card {
+            width: 700px;
+            max-width: 95%;
+            background: linear-gradient(135deg, rgba(30,30,35,0.95), rgba(10,10,15,0.98));
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            box-shadow: 0 0 50px rgba(0, 243, 255, 0.1), inset 0 0 20px rgba(0,0,0,0.5);
+            border-radius: 12px;
+            display: flex;
+            overflow: hidden;
+            transform: scale(0.8) rotateX(10deg);
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+        }
+
+        .modal-overlay.open .hologram-card {
+            transform: scale(1) rotateX(0);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px; right: 20px;
+            font-size: 24px;
+            color: #555;
+            cursor: pointer;
+            z-index: 10;
+        }
+        .close-btn:hover { color: #fff; }
+
+        /* 3D 原子可视化区域 */
+        .atom-visualizer {
+            width: 300px;
+            background: radial-gradient(circle, rgba(0,243,255,0.1) 0%, transparent 70%);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 800px;
+            border-right: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* 原子动画 */
+        .atom {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            transform-style: preserve-3d;
+            animation: floatAtom 4s ease-in-out infinite;
+        }
+
+        .nucleus {
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 20px; height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 15px #fff;
+        }
+
+        .orbit {
+            position: absolute;
+            top: 50%; left: 50%;
+            border: 1px solid rgba(0, 243, 255, 0.6);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 5px rgba(0, 243, 255, 0.2);
+        }
+        
+        .electron {
+            position: absolute;
+            top: 0; left: 50%;
+            width: 6px; height: 6px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 8px var(--accent-cyan);
+        }
+
+        .orbit:nth-child(1) { width: 60px; height: 60px; animation: spin 2s linear infinite; }
+        .orbit:nth-child(2) { width: 100px; height: 100px; animation: spin 3s linear infinite reverse; transform: translate(-50%, -50%) rotateX(60deg); }
+        .orbit:nth-child(3) { width: 140px; height: 140px; animation: spin 4s linear infinite; transform: translate(-50%, -50%) rotateY(60deg); }
+
+        @keyframes spin { 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+        @keyframes floatAtom { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+        /* 信息区域 */
+        .info-panel {
+            flex: 1;
+            padding: 30px;
+        }
+
+        .info-header {
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .modal-symbol {
+            font-size: 48px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            text-shadow: 0 0 10px rgba(0,243,255,0.5);
+        }
+        
+        .modal-name { font-size: 24px; }
+        .modal-cat { font-size: 12px; text-transform: uppercase; letter-spacing: 2px; color: #888; }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .data-item label { font-size: 10px; color: #666; display: block; }
+        .data-item span { font-size: 16px; color: #eee; font-family: monospace; }
+
+        .modal-desc {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #aaa;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        /* 响应式缩放 */
+        @media (max-width: 1280px) {
+            .periodic-table { transform: scale(0.85); }
+        }
+        @media (max-width: 800px) {
+            .periodic-table { display: flex; flex-wrap: wrap; justify-content: center; transform: none; }
+            .element { width: 60px; height: 70px; margin: 2px; }
+            .hologram-card { flex-direction: column; width: 90%; }
+            .atom-visualizer { width: 100%; height: 150px; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); }
+            .info-panel { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-animation"></div>
+
+    <div class="control-panel">
+        <div class="title-box">
+            <h1>Periodic Table <span style="font-size:12px; color:var(--accent-cyan)">// CYBER.2077</span></h1>
+        </div>
+        
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search (Name, Symbol)...">
+            </div>
+
+            <div class="temp-control">
+                <span style="font-size:12px; color:#888">TEMP:</span>
+                <input type="range" id="tempSlider" min="0" max="6000" value="298" step="10">
+                <div class="temp-display" id="tempValue">298 K</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="legend" id="legend">
+        <!-- JS 填充 -->
+    </div>
+
+    <div class="periodic-table" id="table">
+        <!-- JS 填充 -->
+    </div>
+
+    <!-- 全息弹窗 -->
+    <div class="modal-overlay" id="modal">
+        <div class="hologram-card">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            
+            <!-- 3D 原子动画区 -->
+            <div class="atom-visualizer">
+                <div class="atom">
+                    <div class="nucleus"></div>
+                    <div class="orbit"><div class="electron"></div></div>
+                    <div class="orbit" style="transform: rotateX(70deg)"><div class="electron"></div></div>
+                    <div class="orbit" style="transform: rotateY(70deg)"><div class="electron"></div></div>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="info-header">
+                    <div class="modal-symbol" id="m-symbol">He</div>
+                    <div class="modal-name" id="m-name">Helium</div>
+                    <div class="modal-cat" id="m-cat">Noble Gas</div>
+                </div>
+                <div class="data-grid">
+                    <div class="data-item"><label>ATOMIC NUMBER</label><span id="m-num">2</span></div>
+                    <div class="data-item"><label>ATOMIC MASS</label><span id="m-mass">4.0026</span></div>
+                    <div class="data-item"><label>MELTING POINT (K)</label><span id="m-melt">0.95</span></div>
+                    <div class="data-item"><label>BOILING POINT (K)</label><span id="m-boil">4.22</span></div>
+                </div>
+                <div class="modal-desc" id="m-desc">
+                    Helium is a chemical element with the symbol He and atomic number 2. It is a colorless, odorless, tasteless, non-toxic, inert, monatomic gas.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 增强的数据集 (包含熔点/沸点用于交互) ---
+        // 为了代码简洁，部分数据为模拟近似值，重点展示交互逻辑
+        const categories = [
+            { name: "碱金属", color: "#ff5252" },
+            { name: "碱土金属", color: "#ffb142" },
+            { name: "过渡金属", color: "#706fd3" },
+            { name: "贫金属", color: "#33d9b2" },
+            { name: "类金属", color: "#34ace0" },
+            { name: "非金属", color: "#ffda79" },
+            { name: "卤素", color: "#218c74" },
+            { name: "稀有气体", color: "#b33939" },
+            { name: "镧系", color: "#f78fb3" },
+            { name: "锕系", color: "#cd84f1" }
+        ];
+
+        // 简化的数据结构: 符号, 名称, 质量, 类别ID, 熔点(K), 沸点(K)
+        // -1 表示未知或极高/极低
+        const rawData = [
+            "H|氢|1.008|5|14|20", "He|氦|4.0026|7|1|4", "Li|锂|6.94|0|453|1615", "Be|铍|9.0122|1|1560|2742", "B|硼|10.81|4|2349|4200", "C|碳|12.011|5|3800|4300", "N|氮|14.007|5|63|77", "O|氧|15.999|5|54|90", "F|氟|18.998|6|53|85", "Ne|氖|20.180|7|24|27",
+            "Na|钠|22.990|0|370|1156", "Mg|镁|24.305|1|923|1363", "Al|铝|26.982|3|933|2792", "Si|硅|28.085|4|1687|3538", "P|磷|30.974|5|317|550", "S|硫|32.06|5|388|717", "Cl|氯|35.45|6|171|239", "Ar|氩|39.948|7|83|87", "K|钾|39.098|0|336|1032", "Ca|钙|40.078|1|1115|1757",
+            "Sc|钪|44.956|2|1814|3109", "Ti|钛|47.867|2|1941|3560", "V|钒|50.942|2|2183|3680", "Cr|铬|51.996|2|2180|2944", "Mn|锰|54.938|2|1519|2334", "Fe|铁|55.845|2|1811|3134", "Co|钴|58.933|2|1768|3200", "Ni|镍|58.693|2|1728|3186", "Cu|铜|63.546|2|1357|2835", "Zn|锌|65.38|2|692|1180",
+            "Ga|镓|69.723|3|302|2477", "Ge|锗|72.63|4|1211|3106", "As|砷|74.922|4|1090|887", "Se|硒|78.971|5|494|958", "Br|溴|79.904|6|265|332", "Kr|氪|83.798|7|115|119", "Rb|铷|85.468|0|312|961", "Sr|锶|87.62|1|1050|1655", "Y|钇|88.906|2|1799|3609", "Zr|锆|91.224|2|2128|4682",
+            "Nb|铌|92.906|2|2750|5017", "Mo|钼|95.95|2|2896|4912", "Tc|锝|98|2|2430|4538", "Ru|钌|101.07|2|2607|4423", "Rh|铑|102.91|2|2237|3968", "Pd|钯|106.42|2|1828|3236", "Ag|银|107.87|2|1234|2435", "Cd|镉|112.41|2|594|1040", "In|铟|114.82|3|429|2345", "Sn|锡|118.71|3|505|2875",
+            "Sb|锑|121.76|4|903|1860", "Te|碲|127.60|4|722|1261", "I|碘|126.90|6|386|457", "Xe|氙|131.29|7|161|165", "Cs|铯|132.91|0|301|944", "Ba|钡|137.33|1|1000|2170", "La|镧|138.91|8|1193|3737", "Ce|铈|140.12|8|1068|3716", "Pr|镨|140.91|8|1208|3793", "Nd|钕|144.24|8|1297|3347",
+            "Pm|钷|145|8|1315|3273", "Sm|钐|150.36|8|1345|2067", "Eu|铕|151.96|8|1099|1802", "Gd|钆|157.25|8|1585|3546", "Tb|铽|158.93|8|1629|3503", "Dy|镝|162.50|8|1680|2840", "Ho|钬|164.93|8|1734|2993", "Er|铒|167.26|8|1802|3141", "Tm|铥|168.93|8|1818|2223", "Yb|镱|173.05|8|1097|1469",
+            "Lu|镥|174.97|8|1925|3675", "Hf|铪|178.49|2|2506|4876", "Ta|钽|180.95|2|3290|5731", "W|钨|183.84|2|3695|5828", "Re|铼|186.21|2|3459|5869", "Os|锇|190.23|2|3306|5285", "Ir|铱|192.22|2|2719|4701", "Pt|铂|195.08|2|2041|4098", "Au|金|196.97|2|1337|3129", "Hg|汞|200.59|2|234|630",
+            "Tl|铊|204.38|3|577|1746", "Pb|铅|207.2|3|600|2022", "Bi|铋|208.98|3|544|1837", "Po|钋|209|4|527|1235", "At|砹|210|6|575|610", "Rn|氡|222|7|202|211", "Fr|钫|223|0|300|950", "Ra|镭|226|1|973|2010", "Ac|锕|227|9|1323|3471", "Th|钍|232.04|9|2115|5061",
+            "Pa|镤|231.04|9|1841|4300", "U|铀|238.03|9|1405|4404", "Np|镎|237|9|917|4273", "Pu|钚|244|9|912|3501", "Am|镅|243|9|1449|2880", "Cm|锔|247|9|1613|3383", "Bk|锫|247|9|1259|2900", "Cf|锎|251|9|1173|1743", "Es|锿|252|9|1133|1269", "Fm|镄|257|9|1800|1800",
+            "Md|钔|258|9|1100|1100", "No|锘|259|9|1100|1100", "Lr|铹|266|9|1900|1900", "Rf|鑪|267|2|2400|5800", "Db|𨧀|268|2|2600|5800", "Sg|𨭎|269|2|2600|5800", "Bh|𨨏|270|2|2600|5800", "Hs|𨭆|269|2|2600|5800", "Mt|䥑|278|2|2600|5800", "Ds|鐽|281|2|2600|5800",
+            "Rg|錀|282|2|2600|5800", "Cn|鎶|285|2|283|340", "Nh|鉨|286|3|700|1400", "Fl|鈇|289|3|200|380", "Mc|镆|290|3|700|1400", "Lv|鉝|293|3|700|1400", "Ts|鿬|294|6|700|1400", "Og|鿫|294|7|325|450"
+        ];
+
+        // --- 2. 系统逻辑 ---
+
+        const elements = rawData.map((d, i) => {
+            const [s, n, m, c, melt, boil] = d.split('|');
+            return {
+                idx: i + 1,
+                sym: s,
+                name: n,
+                mass: m,
+                cat: categories[c],
+                catId: parseInt(c),
+                melt: parseInt(melt),
+                boil: parseInt(boil)
+            };
+        });
+
+        const table = document.getElementById('table');
+        const legend = document.getElementById('legend');
+        let currentActiveCategory = null;
+
+        // 布局计算 (同之前逻辑)
+        function getPos(n) {
+            if (n == 1) return [1, 1]; if (n == 2) return [1, 18];
+            if (n >= 3 && n <= 4) return [2, n - 2];
+            if (n >= 5 && n <= 10) return [2, n + 8];
+            if (n >= 11 && n <= 12) return [3, n - 10];
+            if (n >= 13 && n <= 18) return [3, n + 2];
+            if (n >= 19 && n <= 36) return [4, n - 18];
+            if (n >= 37 && n <= 54) return [5, n - 36];
+            if (n >= 55 && n <= 56) return [6, n - 54];
+            if (n >= 72 && n <= 86) return [6, n - 68];
+            if (n >= 87 && n <= 88) return [7, n - 86];
+            if (n >= 104 && n <= 118) return [7, n - 100];
+            if (n >= 57 && n <= 71) return [9, n - 53];
+            if (n >= 89 && n <= 103) return [10, n - 85];
+            return [0, 0];
+        }
+
+        // 初始化
+        function init() {
+            // 生成图例
+            categories.forEach((c, i) => {
+                const btn = document.createElement('div');
+                btn.className = 'legend-item';
+                btn.innerHTML = `<div class="legend-color" style="background:${c.color}"></div>${c.name}`;
+                btn.onclick = () => toggleCategory(i, btn);
+                legend.appendChild(btn);
+            });
+
+            // 生成元素
+            elements.forEach((e, i) => {
+                const [r, c] = getPos(e.idx);
+                const el = document.createElement('div');
+                el.className = 'element';
+                el.style.gridRow = r;
+                el.style.gridColumn = c;
+                el.style.borderColor = e.cat.color;
+                el.dataset.idx = e.idx;
+                
+                // 动态光效 (Spotlight)
+                el.onmousemove = (evt) => {
+                    const rect = el.getBoundingClientRect();
+                    const x = ((evt.clientX - rect.left) / el.clientWidth) * 100;
+                    const y = ((evt.clientY - rect.top) / el.clientHeight) * 100;
+                    el.style.setProperty('--x', x + '%');
+                    el.style.setProperty('--y', y + '%');
+                };
+
+                el.innerHTML = `
+                    <div class="state-dot"></div>
+                    <div class="atomic-number">${e.idx}</div>
+                    <div class="symbol" style="color:${e.cat.color}">${e.sym}</div>
+                    <div class="name">${e.name}</div>
+                `;
+                el.onclick = () => showModal(e);
+                
+                // 延迟入场动画
+                setTimeout(() => el.classList.add('visible'), i * 10);
+                
+                table.appendChild(el);
+            });
+
+            updateStates(298); // 初始化为室温
+        }
+
+        // --- 3. 交互逻辑 ---
+
+        // 切换分类高亮
+        function toggleCategory(catId, btn) {
+            const allElements = document.querySelectorAll('.element');
+            const allBtns = document.querySelectorAll('.legend-item');
+
+            if (currentActiveCategory === catId) {
+                // 取消选择
+                currentActiveCategory = null;
+                allElements.forEach(el => el.classList.remove('dimmed'));
+                allBtns.forEach(b => b.classList.remove('active'));
+            } else {
+                // 选择新分类
+                currentActiveCategory = catId;
+                allBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                allElements.forEach(el => {
+                    const idx = parseInt(el.dataset.idx) - 1;
+                    if (elements[idx].catId === catId) {
+                        el.classList.remove('dimmed');
+                    } else {
+                        el.classList.add('dimmed');
+                    }
+                });
+            }
+        }
+
+        // 搜索功能
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const val = e.target.value.toLowerCase();
+            const domElements = document.querySelectorAll('.element');
+            
+            domElements.forEach(el => {
+                const data = elements[el.dataset.idx - 1];
+                const match = data.name.includes(val) || 
+                              data.sym.toLowerCase().includes(val) || 
+                              data.idx.toString() === val;
+                
+                if (match) el.classList.remove('dimmed');
+                else el.classList.add('dimmed');
+            });
+            
+            if(val === "") {
+                // 如果有分类选中，恢复分类状态，否则全显
+                if(currentActiveCategory !== null) {
+                    domElements.forEach(el => {
+                         const data = elements[el.dataset.idx - 1];
+                         if(data.catId !== currentActiveCategory) el.classList.add('dimmed');
+                         else el.classList.remove('dimmed');
+                    });
+                } else {
+                    domElements.forEach(el => el.classList.remove('dimmed'));
+                }
+            }
+        });
+
+        // 温度控制
+        const tempSlider = document.getElementById('tempSlider');
+        const tempDisplay = document.getElementById('tempValue');
+        
+        tempSlider.addEventListener('input', (e) => {
+            const temp = parseInt(e.target.value);
+            tempDisplay.innerText = temp + " K";
+            updateStates(temp);
+        });
+
+        function updateStates(temp) {
+            const domElements = document.querySelectorAll('.element');
+            domElements.forEach(el => {
+                const data = elements[el.dataset.idx - 1];
+                const dot = el.querySelector('.state-dot');
+                let color = 'var(--state-unknown)';
+                
+                // 简单状态判断逻辑
+                if (data.melt === -1) {
+                    color = 'var(--state-unknown)';
+                } else if (temp < data.melt) {
+                    color = 'var(--state-solid)'; // 固
+                } else if (temp >= data.melt && temp < data.boil) {
+                    color = 'var(--state-liquid)'; // 液
+                } else {
+                    color = 'var(--state-gas)'; // 气
+                }
+                
+                dot.style.backgroundColor = color;
+                dot.style.boxShadow = `0 0 5px ${color}`;
+            });
+        }
+
+        // --- 4. 弹窗逻辑 ---
+        const modal = document.getElementById('modal');
+        
+        function showModal(data) {
+            document.getElementById('m-symbol').innerText = data.sym;
+            document.getElementById('m-symbol').style.color = data.cat.color;
+            document.getElementById('m-name').innerText = data.name;
+            document.getElementById('m-cat').innerText = data.cat.name;
+            document.getElementById('m-num').innerText = data.idx;
+            document.getElementById('m-mass').innerText = data.mass;
+            document.getElementById('m-melt').innerText = data.melt === -1 ? "?" : data.melt;
+            document.getElementById('m-boil').innerText = data.boil === -1 ? "?" : data.boil;
+            
+            modal.classList.add('open');
+        }
+
+        function closeModal() {
+            modal.classList.remove('open');
+        }
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+
+        // 启动
+        init();
+
+    </script>
+</body>
+</html>
