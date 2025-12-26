@@ -20,8 +20,14 @@
       position: relative; 
       overflow: hidden; 
       transition: all 0.8s ease; 
+      margin: 0; /* 清除默认边距 */
     }
-    /* 电脑端占屏优化：最小宽度1200px时强制占屏≥75% */
+    /* 强制全屏基础样式 */
+    html, body {
+      height: 100%;
+      width: 100%;
+    }
+    /* 电脑端占屏优化：强制全屏 */
     @media (min-width: 1200px) { 
       body { padding: 0; width: 100vw; height: 100vh; } 
       .container { width: 75vw; height: 75vh; min-width: 900px; min-height: 675px; display: flex; flex-direction: column; align-items: center; justify-content: center; } 
@@ -30,9 +36,9 @@
     @media (min-width: 768px) and (max-width: 1199px) { 
       .container { width: 60vw; min-width: 600px; display: flex; flex-direction: column; align-items: center; justify-content: center; } 
     }
-    /* 移动端（<768px）自适应 */
+    /* 移动端（<768px）自适应全屏 */
     @media (max-width: 767px) { 
-      .container { width: 100%; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; } 
+      .container { width: 100%; height: 80vh; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; } 
     }
     .day-mode { background: linear-gradient(120deg, #e0f7fa, #f5fafe); }
     .night-mode { 
@@ -115,11 +121,44 @@
     }
     .day-mode .date-info { color: rgba(0, 0, 0, 0.6); background: rgba(0,0,0,0.03); }
     .night-mode .date-info { color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.08); }
+    /* 全屏/缩小按钮（右下角） */
+    .fullscreen-btn { 
+      position: absolute; 
+      bottom: 2vw; 
+      right: 2vw; 
+      width: clamp(40px, 5vw, 50px); 
+      height: clamp(40px, 5vw, 50px); 
+      border-radius: 50%; 
+      border: none; 
+      backdrop-filter: blur(10px); 
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
+      color: #fff; 
+      font-size: clamp(1.2rem, 2vw, 1.5rem); 
+      cursor: pointer; 
+      transition: all 0.3s ease; 
+      z-index: 10; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+    }
+    .day-mode .fullscreen-btn { 
+      background: rgba(0,0,0,0.1); 
+      color: rgba(0, 0, 0, 0.8); 
+    }
+    .night-mode .fullscreen-btn { 
+      background: rgba(255,255,255,0.15); 
+      color: rgba(255,255,255,0.9); 
+    }
+    .fullscreen-btn:hover { 
+      transform: scale(1.1); 
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3); 
+    }
     /* 小屏幕特殊适配 */
     @media (max-width: 375px) { 
       .time-card { padding: 10px 15px; min-width: 60px; font-size: clamp(2.5rem, 12vw, 4rem); } 
       .colon { font-size: clamp(2.5rem, 12vw, 4rem); } 
       .authoritative-title { font-size: 1rem; top: 10px; left: 10px; padding: 6px 10px; } 
+      .fullscreen-btn { width: 36px; height: 36px; bottom: 10px; right: 10px; font-size: 1rem; } 
     }
   </style>
 </head>
@@ -136,6 +175,8 @@
     </div>
     <div class="date-info" id="date">2025-12-05 星期五</div>
   </div>
+  <!-- 右下角全屏/缩小按钮 -->
+  <button class="fullscreen-btn" id="fullscreenBtn">⛶</button>
 
   <script>
     const bodyEl = document.body;
@@ -143,6 +184,7 @@
     const minuteEl = document.getElementById('minute');
     const secondEl = document.getElementById('second');
     const dateEl = document.getElementById('date');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
 
     // 陕西商洛商州精准坐标（用于日夜切换计算）
     const SHANGZHOU = { lat: 33.8724, lng: 109.9336 };
@@ -151,7 +193,7 @@
       return num.toString().padStart(2, '0');
     }
 
-    // 核心：基于日出日落时间切换日夜模式（保留原逻辑，仅用于模式切换）
+    // 核心：基于日出日落时间切换日夜模式
     function toggleDayNightMode(now) {
       const utcNow = new Date(now.getTime() - now.getTimezoneOffset() * 60 * 1000);
       const times = SunCalc.getTimes(utcNow, SHANGZHOU.lat, SHANGZHOU.lng);
@@ -164,7 +206,7 @@
       // 日出后30分钟至日落前30分钟为日模式，其余为夜模式
       const isDay = sunrise && sunset 
         ? nowHour >= (sunrise.getHours() + 0.5) && nowHour < (sunset.getHours() - 0.5)
-        : nowHour >= 6 && nowHour < 18; //  fallback逻辑
+        : nowHour >= 6 && nowHour < 18; // fallback逻辑
       
       if (isDay) {
         bodyEl.classList.add('day-mode');
@@ -197,11 +239,53 @@
       toggleDayNightMode(now);
     }
 
-    // 初始化并每秒更新
+    // 全屏/缩小功能核心逻辑
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        // 进入全屏
+        if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen();
+        } else if (document.documentElement.webkitRequestFullscreen) { // Safari
+          document.documentElement.webkitRequestFullscreen();
+        } else if (document.documentElement.msRequestFullscreen) { // IE/Edge
+          document.documentElement.msRequestFullscreen();
+        }
+        fullscreenBtn.textContent = '⛽'; // 切换按钮图标
+      } else {
+        // 退出全屏
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) { // Safari
+          document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) { // IE/Edge
+          document.msExitFullscreen();
+        }
+        fullscreenBtn.textContent = '⛶'; // 切换按钮图标
+      }
+    }
+
+    // 监听全屏状态变化，同步按钮图标
+    document.addEventListener('fullscreenchange', () => {
+      fullscreenBtn.textContent = document.fullscreenElement ? '⛽' : '⛶';
+    });
+    document.addEventListener('webkitfullscreenchange', () => {
+      fullscreenBtn.textContent = document.webkitFullscreenElement ? '⛽' : '⛶';
+    });
+    document.addEventListener('msfullscreenchange', () => {
+      fullscreenBtn.textContent = document.msFullscreenElement ? '⛽' : '⛶';
+    });
+
+    // 绑定全屏按钮点击事件
+    fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+    // 初始化：默认进入全屏 + 启动时钟
     window.addEventListener('load', () => {
+      // 页面加载完成后自动进入全屏
+      toggleFullscreen();
+      // 启动时间更新
       updateClock();
       setInterval(updateClock, 1000);
     });
   </script>
 </body>
-</html>
+  </html>
