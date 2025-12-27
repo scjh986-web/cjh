@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>视频播放器</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; border: 0; outline: none; }
+        html, body { width: 100vw; height: 100vh; overflow: hidden; }
+        body {
+            background: #000;
+            font-family: Helvetica Neue, Microsoft YaHei, sans-serif;
+            color: #fff;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        #fullscreen-toggle {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(0,50,80,0.4);
+            border: 1px solid rgba(10, 180, 255, 0.3);
+            color: #0ab4ff;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        #fullscreen-toggle:hover {
+            border-color: #0ab4ff;
+            color: #fff;
+            background: rgba(0,60,90,0.6);
+        }
+
+        #player-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        #video-core {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        #video-core::-webkit-media-controls { display: none !important; }
+
+        .video-error-tip {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            color: #0ab4ff;
+            z-index: 2;
+            display: none;
+            padding: 20px 30px;
+            border-radius: 16px;
+            background: rgba(0, 20, 40, 0.5);
+            border: 1px solid rgba(10, 180, 255, 0.3);
+        }
+        .video-error-tip i { font-size: 40px; }
+        .video-error-retry {
+            padding: 6px 16px;
+            border-radius: 16px;
+            background: rgba(0, 50, 80, 0.6);
+            border: 1px solid rgba(10, 180, 255, 0.4);
+            color: #0ab4ff;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: all 0.2s ease;
+        }
+        .video-error-retry:hover { border-color: #0ab4ff; }
+
+        #init-page {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 25px;
+            z-index: 1;
+            background: rgba(0,0,0,0.95);
+            padding: 0 20px;
+        }
+        .init-tips {
+            width: 100%;
+            max-width: 360px;
+            padding: 15px 20px;
+            border-radius: 12px;
+            background: rgba(0, 20, 40, 0.6);
+            border: 1px solid rgba(10, 180, 255, 0.2);
+        }
+        .init-tips p {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.6;
+            margin-bottom: 4px;
+        }
+        .init-tips p:last-child { margin-bottom: 0; }
+        .init-tips .tip-highlight { color: #0ab4ff; }
+
+        #only-play-btn {
+            width: 80vw; max-width: 380px;
+            height: 76px;
+            border-radius: 38px;
+            background: rgba(0, 50, 80, 0.6);
+            border: 1px solid rgba(10, 180, 255, 0.4);
+            color: #0ab4ff;
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        #only-play-btn:hover {
+            border-color: #0ab4ff;
+            color: #fff;
+            transform: translateY(-3px);
+        }
+        #only-play-btn i { font-size: 28px; }
+
+        #video-float-panel {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70vw; max-width: 320px; max-height: 60vh;
+            background: rgba(0, 20, 40, 0.95);
+            border-radius: 20px;
+            border: 1px solid rgba(10, 180, 255, 0.5);
+            z-index: 5;
+            display: none;
+            padding: 16px 0;
+            overflow-y: auto;
+            pointer-events: auto;
+            transition: all 0.2s ease;
+        }
+        .video-list-item {
+            width: 85%;
+            height: 50px;
+            line-height: 50px;
+            text-align: center;
+            font-size: 16px;
+            color: #fff;
+            border-radius: 25px;
+            background: rgba(0, 50, 80, 0.3);
+            border: 1px solid rgba(10, 180, 255, 0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0 auto 8px;
+        }
+        .video-list-item:hover {
+            background: rgba(0, 60, 90, 0.8);
+            border-color: #0ab4ff;
+            color: #0ab4ff;
+            transform: translateY(-1px);
+        }
+        .video-list-item.active {
+            background: rgba(10, 180, 255, 0.2);
+            border-color: #0ab4ff;
+            color: #0ab4ff;
+        }
+
+        #core-controller {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            padding: 20px 24px 35px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.85));
+            z-index: 3;
+            display: none;
+            transform: translateY(100%);
+            opacity: 0;
+            transition: transform 0.4s ease, opacity 0.3s ease;
+        }
+        #core-controller.show {
+            display: block;
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        #progress-wrap {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            margin-bottom: 18px;
+            position: relative;
+            cursor: pointer;
+        }
+        #progress-active {
+            position: absolute; top: 0; left: 0; height: 100%; width: 0%;
+            background: #0ab4ff;
+            border-radius: 3px;
+            transition: width 0.1s linear;
+        }
+        #progress-dot {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            width: 16px; height: 16px;
+            background: #fff; border-radius: 50%;
+            opacity: 0; transition: opacity 0.2s ease;
+        }
+        #progress-wrap:hover #progress-dot { opacity: 1; }
+
+        #controller-btn-group {
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .controller-btn {
+            width: 44px; height: 44px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0,50,80,0.4); color: #0ab4ff; font-size: 20px;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .controller-btn:hover {
+            background: rgba(0,60,90,0.6); color: #fff; transform: scale(1.1);
+        }
+        .controller-btn:active { transform: scale(0.95); }
+
+        #time-display { color: rgba(255,255,255,0.9); font-size: 14px; }
+
+        #setting-btn {
+            position: absolute; top: 20px; right: 20px; width: 48px; height: 48px;
+            border-radius: 50%;
+            background: rgba(0,50,80,0.4);
+            border: 1px solid rgba(10, 180, 255, 0.3); color: #0ab4ff; font-size: 18px;
+            display: flex; align-items: center; justify-content: center; z-index: 4;
+            cursor: pointer; transition: all 0.3s ease; display: none;
+        }
+        #setting-btn.show { display: flex; }
+        #setting-btn.playing { border-color: #0ab4ff; }
+        #setting-btn:hover { border-color: #0ab4ff; }
+        
+        #setting-panel {
+            position: absolute; top: 75px; right: 20px; width: 260px;
+            background: rgba(0,30,50,0.9);
+            border-radius: 12px; border: 1px solid rgba(10, 180, 255, 0.3); padding: 16px 16px;
+            z-index: 4;
+            transform: translateX(120%);
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.2s ease;
+            max-height: 60vh; overflow-y: auto; display: none;
+        }
+        #setting-panel.show {
+            display: block;
+            transform: translateX(0);
+            opacity: 1;
+        }
+        .setting-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 8px; border-radius: 8px; margin-bottom: 8px;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+        .setting-item:hover { background: rgba(10, 180, 255, 0.1); border-left: 3px solid #0ab4ff; }
+        .setting-item i { color: #0ab4ff; margin-right: 8px; }
+        .setting-status {
+            font-size: 12px; padding: 3px 10px; border-radius: 12px;
+            background: rgba(10, 180, 255, 0.2); color: #0ab4ff;
+        }
+
+        #ratio-options {
+            position: absolute; right: 0; top: 40px; width: 140px;
+            background: rgba(0,30,50,0.95); border-radius: 8px;
+            border: 1px solid rgba(10, 180, 255, 0.3); padding: 8px 0; display: none;
+        }
+        #ratio-options.show { display: block; }
+        .ratio-item { padding: 8px 16px; font-size: 13px; cursor: pointer; transition: all 0.2s ease; }
+        .ratio-item.active, .ratio-item:hover { background: rgba(10, 180, 255, 0.2); color: #0ab4ff; }
+
+        #loading-tip {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            font-size: 40px; color: #0ab4ff; z-index: 2; display: none;
+            animation: scale 1s infinite ease-in-out alternate;
+        }
+        #loading-tip i { animation: spin 1.5s infinite linear; }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes scale {
+            from { transform: translate(-50%, -50%) scale(0.9); }
+            to { transform: translate(-50%, -50%) scale(1.1); }
+        }
+
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb {
+            background: #0ab4ff;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div id="player-wrapper">
+        <button id="fullscreen-toggle"><i class="fa fa-expand"></i></button>
+
+        <video id="video-core" src="1.mp4"></video>
+        <div class="video-error-tip" id="videoErrorTip">
+            <i class="fa fa-exclamation-circle"></i>
+            <span>视频加载失败</span>
+            <button class="video-error-retry" id="errorRetryBtn">点击重试</button>
+        </div>
+
+        <div id="init-page">
+            <div class="init-tips">
+                <p><span class="tip-highlight">左上角按钮</span> → 手动切换全屏/退出全屏（优先操作）</p>
+                <p><span class="tip-highlight">单击屏幕</span> → 显示/隐藏底部控制栏</p>
+                <p><span class="tip-highlight">双击屏幕</span> → 退出播放 | 点击叉号也可退出（状态不变）</p>
+                <p><span class="tip-highlight">键盘空格</span> 播放/暂停 | <span class="tip-highlight">F键</span> 快捷全屏切换</p>
+                <p><span class="tip-highlight">←快退5s</span> | <span class="tip-highlight">→快进5s</span> | ↑音量+ | ↓音量-</p>
+                <p><span class="tip-highlight">加载失败</span>：双击退出 / 点击按钮重试</p>
+                <p><span class="tip-highlight">设置项状态</span> → 自动记忆，刷新/切换视频不重置</p>
+            </div>
+            <button id="only-play-btn"><i class="fa fa-play-circle"></i> 选择并播放视频</button>
+        </div>
+
+        <div id="video-float-panel">
+            <div id="video-list-container"></div>
+        </div>
+
+        <div id="core-controller">
+            <div id="progress-wrap">
+                <div id="progress-active"></div>
+                <div id="progress-dot"></div>
+            </div>
+            <div id="controller-btn-group">
+                <button class="controller-btn" id="play-pause-btn"><i class="fa fa-pause"></i></button>
+                <div id="time-display">00:00 / 00:00</div>
+                <button class="controller-btn" id="exit-btn"><i class="fa fa-times"></i></button>
+            </div>
+        </div>
+
+        <button id="setting-btn"><i class="fa fa-cog"></i></button>
+        <div id="setting-panel">
+            <div class="setting-item" data-type="replay">
+                <span><i class="fa fa-repeat"></i> 播放结束自动重播</span>
+                <span class="setting-status" id="replay-status">开启</span>
+            </div>
+            <div class="setting-item" data-type="memory">
+                <span><i class="fa fa-history"></i> 播放记忆（下次续播）</span>
+                <span class="setting-status" id="memory-status">开启</span>
+            </div>
+            <div class="setting-item relative" data-type="ratio">
+                <span><i class="fa fa-picture-o"></i> 画面比例切换</span>
+                <span class="setting-status" id="ratio-status">自适应</span>
+                <div id="ratio-options">
+                    <div class="ratio-item active" data-val="contain">自适应（不变形）</div>
+                    <div class="ratio-item" data-val="fill">全屏填充</div>
+                    <div class="ratio-item" data-val="cover">全屏覆盖</div>
+                </div>
+            </div>
+        </div>
+        <div id="loading-tip"><i class="fa fa-circle-o-notch"></i></div>
+    </div>
+
+    <script>
+        // 基础配置（默认值，会被本地存储的记忆值覆盖）
+        const OPTIONS = {
+            videoSrc: "1.mp4",
+            defaultRatio: "contain",
+            autoReplay: true,
+            playMemory: true,
+            doubleClickDelay: 300,
+            volumeStep: 0.1,
+            seekStep: 5,
+            storageKey: "sci-fi-player-record",
+            settingStorageKey: "sci-fi-player-settings" // 新增：设置项存储key
+        };
+
+        const videoList = [
+            { name: "我们的主角陈卓航", src: "1.mp4" },
+            { name: "暂未添加", src: "10.html" },
+            { name: "暂未添加", src: "10.html" },
+            { name: "暂未添加", src: "10.html" },
+            { name: "暂未添加", src: "10.html" },
+            { name: "暂未添加", src: "10.html" },
+            { name: "暂未添加", src: "10.html" },
+            { name: "暂未添加", src: "10.html" }
+        ];
+
+        const DOM = {
+            fullscreenToggle: document.getElementById('fullscreen-toggle'),
+            playerWrapper: document.getElementById('player-wrapper'),
+            videoCore: document.getElementById('video-core'),
+            videoErrorTip: document.getElementById('videoErrorTip'),
+            errorRetryBtn: document.getElementById('errorRetryBtn'),
+            initPage: document.getElementById('init-page'),
+            onlyPlayBtn: document.getElementById('only-play-btn'),
+            floatPanel: document.getElementById('video-float-panel'),
+            listContainer: document.getElementById('video-list-container'),
+            coreController: document.getElementById('core-controller'),
+            progressWrap: document.getElementById('progress-wrap'),
+            progressActive: document.getElementById('progress-active'),
+            progressDot: document.getElementById('progress-dot'),
+            playPauseBtn: document.getElementById('play-pause-btn'),
+            exitBtn: document.getElementById('exit-btn'),
+            timeDisplay: document.getElementById('time-display'),
+            settingBtn: document.getElementById('setting-btn'),
+            settingPanel: document.getElementById('setting-panel'),
+            replayStatus: document.getElementById('replay-status'),
+            memoryStatus: document.getElementById('memory-status'),
+            ratioStatus: document.getElementById('ratio-status'),
+            ratioOptions: document.getElementById('ratio-options'),
+            ratioItems: document.querySelectorAll('.ratio-item'),
+            loadingTip: document.getElementById('loading-tip')
+        };
+
+        const STATE = {
+            isPlaying: false,
+            clickTimes: 0,
+            clickTimer: null,
+            isFullScreen: false,
+            isControllerShow: false,
+            currentVolume: 0.8,
+            isStorageAvailable: true,
+            isVideoError: false
+        };
+
+        const Utils = {
+            formatTime(sec) {
+                if (isNaN(sec) || sec < 0) return "00:00";
+                const m = Math.floor(sec / 60);
+                const s = Math.floor(sec % 60);
+                return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            },
+            enterFull() {
+                const el = DOM.playerWrapper;
+                if (el.requestFullscreen) el.requestFullscreen();
+                else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+                else if (el.msRequestFullscreen) el.msRequestFullscreen();
+                STATE.isFullScreen = true;
+                DOM.fullscreenToggle.innerHTML = '<i class="fa fa-compress"></i>';
+            },
+            exitFull() {
+                if (document.exitFullscreen) document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+                else if (document.msExitFullscreen) document.msExitFullscreen();
+                STATE.isFullScreen = false;
+                DOM.fullscreenToggle.innerHTML = '<i class="fa fa-expand"></i>';
+            },
+            toggleFullScreen() {
+                STATE.isFullScreen ? this.exitFull() : this.enterFull();
+            },
+            adjustVolume(isAdd) {
+                let newVol = isAdd ? STATE.currentVolume + OPTIONS.volumeStep : STATE.currentVolume - OPTIONS.volumeStep;
+                newVol = Math.max(0, Math.min(1, newVol));
+                STATE.currentVolume = newVol;
+                DOM.videoCore.volume = newVol;
+            },
+            adjustSeek(isForward) {
+                if (!STATE.isPlaying) return;
+                let newTime = isForward ? DOM.videoCore.currentTime + OPTIONS.seekStep : DOM.videoCore.currentTime - OPTIONS.seekStep;
+                newTime = Math.max(0, Math.min(DOM.videoCore.duration, newTime));
+                DOM.videoCore.currentTime = newTime;
+                Player.updateProgress();
+            },
+            checkStorage() {
+                try {
+                    localStorage.setItem(OPTIONS.storageKey + '_test', '1');
+                    localStorage.removeItem(OPTIONS.storageKey + '_test');
+                    STATE.isStorageAvailable = true;
+                } catch (e) {
+                    STATE.isStorageAvailable = false;
+                    OPTIONS.playMemory = false;
+                    DOM.memoryStatus.textContent = "不可用";
+                }
+            },
+            saveMemory(time) {
+                if (!STATE.isStorageAvailable || !OPTIONS.playMemory) return;
+                localStorage.setItem(OPTIONS.storageKey, JSON.stringify({ src: OPTIONS.videoSrc, time: time }));
+            },
+            getMemory() {
+                if (!STATE.isStorageAvailable || !OPTIONS.playMemory) return 0;
+                const record = JSON.parse(localStorage.getItem(OPTIONS.storageKey) || '{}');
+                return record.src === OPTIONS.videoSrc && !isNaN(record.time) ? record.time : 0;
+            },
+            // 新增：保存设置项状态到本地存储
+            saveSettings() {
+                if (!STATE.isStorageAvailable) return;
+                const settings = {
+                    autoReplay: OPTIONS.autoReplay,
+                    playMemory: OPTIONS.playMemory,
+                    currentRatio: DOM.videoCore.style.objectFit || OPTIONS.defaultRatio
+                };
+                localStorage.setItem(OPTIONS.settingStorageKey, JSON.stringify(settings));
+            },
+            // 新增：从本地存储读取设置项状态，无记忆则用默认值
+            getSettings() {
+                if (!STATE.isStorageAvailable) return;
+                const defaultSettings = {
+                    autoReplay: OPTIONS.autoReplay,
+                    playMemory: OPTIONS.playMemory,
+                    currentRatio: OPTIONS.defaultRatio
+                };
+                const savedSettings = JSON.parse(localStorage.getItem(OPTIONS.settingStorageKey) || '{}');
+                // 合并保存的设置，兼容无保存的场景
+                const finalSettings = { ...defaultSettings, ...savedSettings };
+                // 同步到全局配置
+                OPTIONS.autoReplay = finalSettings.autoReplay;
+                OPTIONS.playMemory = finalSettings.playMemory;
+                // 同步到DOM显示和视频样式
+                DOM.replayStatus.textContent = OPTIONS.autoReplay ? '开启' : '关闭';
+                DOM.memoryStatus.textContent = STATE.isStorageAvailable ? (OPTIONS.playMemory ? '开启' : '关闭') : '不可用';
+                DOM.videoCore.style.objectFit = finalSettings.currentRatio;
+                DOM.ratioStatus.textContent = {
+                    contain: '自适应',
+                    fill: '全屏填充',
+                    cover: '全屏覆盖'
+                }[finalSettings.currentRatio];
+                // 同步比例选项的active状态
+                DOM.ratioItems.forEach(item => {
+                    item.classList.remove('active');
+                    if (item.dataset.val === finalSettings.currentRatio) item.classList.add('active');
+                });
+            }
+        }; 
+
+        const Player = {
+            init() {
+                Utils.checkStorage();
+                // 核心新增：初始化时先读取本地保存的设置状态，覆盖默认值
+                Utils.getSettings();
+                DOM.videoCore.volume = STATE.currentVolume;
+                DOM.videoCore.src = OPTIONS.videoSrc;
+                const memoryTime = Utils.getMemory();
+                if (memoryTime > 0) DOM.videoCore.currentTime = memoryTime;
+                this.renderFloatList();
+                this.bindEvents();
+                this.bindVideoEvents();
+                DOM.videoCore.addEventListener('play', this.syncPlayPauseBtn.bind(this));
+                DOM.videoCore.addEventListener('pause', this.syncPlayPauseBtn.bind(this));
+                document.addEventListener('fullscreenchange', this.syncFullscreenIcon.bind(this));
+                document.addEventListener('webkitfullscreenchange', this.syncFullscreenIcon.bind(this));
+                document.addEventListener('msfullscreenchange', this.syncFullscreenIcon.bind(this));
+            },
+
+            syncPlayPauseBtn() {
+                STATE.isPlaying = !DOM.videoCore.paused;
+                if (STATE.isPlaying) {
+                    DOM.playPauseBtn.innerHTML = '<i class="fa fa-pause"></i>';
+                    DOM.settingBtn.classList.add('playing');
+                } else {
+                    DOM.playPauseBtn.innerHTML = '<i class="fa fa-play"></i>';
+                    DOM.settingBtn.classList.remove('playing');
+                }
+            },
+
+            syncFullscreenIcon() {
+                STATE.isFullScreen = !!document.fullscreenElement || !!document.webkitFullscreenElement || !!document.msFullscreenElement;
+                DOM.fullscreenToggle.innerHTML = STATE.isFullScreen ? '<i class="fa fa-compress"></i>' : '<i class="fa fa-expand"></i>';
+            },
+
+            renderFloatList() {
+                DOM.listContainer.innerHTML = '';
+                videoList.forEach(item => {
+                    const listItem = document.createElement('div');
+                    listItem.className = `video-list-item ${item.src === OPTIONS.videoSrc ? 'active' : ''}`;
+                    listItem.dataset.src = item.src;
+                    listItem.textContent = item.name;
+                    listItem.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        STATE.isVideoError = false;
+                        DOM.videoErrorTip.style.display = 'none';
+                        document.querySelectorAll('.video-list-item').forEach(li => li.classList.remove('active'));
+                        listItem.classList.add('active');
+                        OPTIONS.videoSrc = item.src;
+                        DOM.videoCore.src = item.src;
+                        DOM.floatPanel.style.display = 'none';
+                        this.startPlay();
+                        const memoryTime = Utils.getMemory();
+                        if (memoryTime > 0) DOM.videoCore.currentTime = memoryTime;
+                    });
+                    DOM.listContainer.appendChild(listItem);
+                });
+            },
+
+            startPlay() {
+                STATE.isVideoError = false;
+                DOM.loadingTip.style.display = 'block';
+                DOM.initPage.style.display = 'none';
+                DOM.settingBtn.classList.add('show');
+                STATE.isControllerShow = false;
+                DOM.coreController.classList.remove('show');
+
+                DOM.videoCore.play().then(() => {
+                    DOM.loadingTip.style.display = 'none';
+                    this.syncPlayPauseBtn();
+                }).catch(err => {
+                    DOM.loadingTip.style.display = 'none';
+                    DOM.videoErrorTip.style.display = 'flex';
+                    STATE.isVideoError = true;
+                    this.syncPlayPauseBtn();
+                });
+            },
+
+            togglePlay() {
+                if (STATE.isPlaying) {
+                    DOM.videoCore.pause();
+                } else {
+                    DOM.videoCore.play();
+                }
+                this.syncPlayPauseBtn();
+            },
+
+            toggleController() {
+                STATE.isControllerShow = !STATE.isControllerShow;
+                STATE.isControllerShow ? DOM.coreController.classList.add('show') : DOM.coreController.classList.remove('show');
+            },
+
+            updateProgress() {
+                const current = DOM.videoCore.currentTime;
+                const total = DOM.videoCore.duration;
+                if (isNaN(total)) return;
+                const percent = (current / total) * 100;
+                DOM.progressActive.style.width = `${percent}%`;
+                DOM.progressDot.style.left = `${percent}%`;
+                DOM.timeDisplay.textContent = `${Utils.formatTime(current)} / ${Utils.formatTime(total)}`;
+                Utils.saveMemory(current);
+            },
+
+            changeRatio(val) {
+                DOM.videoCore.style.objectFit = val;
+                const ratioText = { contain: '自适应', fill: '全屏填充', cover: '全屏覆盖' };
+                DOM.ratioStatus.textContent = ratioText[val];
+                DOM.ratioItems.forEach(item => {
+                    item.classList.remove('active');
+                    if (item.dataset.val === val) item.classList.add('active');
+                });
+                DOM.ratioOptions.classList.remove('show');
+                // 新增：切换比例后，立即保存设置状态
+                Utils.saveSettings();
+            },
+
+            toggleSetting(type) {
+                if (type === 'replay') {
+                    OPTIONS.autoReplay = !OPTIONS.autoReplay;
+                    DOM.replayStatus.textContent = OPTIONS.autoReplay ? '开启' : '关闭';
+                } else if (type === 'memory') {
+                    if (!STATE.isStorageAvailable) return alert('本地存储不可用，无法切换');
+                    OPTIONS.playMemory = !OPTIONS.playMemory;
+                    DOM.memoryStatus.textContent = OPTIONS.playMemory ? '开启' : '关闭';
+                }
+                // 新增：切换任何设置项后，立即保存到本地存储
+                Utils.saveSettings();
+            },
+
+            exitPlay() {
+                DOM.videoCore.pause();
+                this.syncPlayPauseBtn();
+                STATE.isPlaying = false;
+                STATE.isControllerShow = false;
+                STATE.isVideoError = false;
+                DOM.settingBtn.classList.remove('playing', 'show');
+                DOM.initPage.style.display = 'flex';
+                DOM.coreController.classList.remove('show');
+                DOM.settingPanel.classList.remove('show');
+                DOM.floatPanel.style.display = 'none';
+                DOM.videoErrorTip.style.display = 'none';
+                DOM.loadingTip.style.display = 'none';
+                // 退出播放也保存一次，防止设置未同步
+                Utils.saveSettings();
+            },
+
+            handleScreenClick() {
+                if (STATE.isVideoError) {
+                    STATE.clickTimes++;
+                    if (STATE.clickTimes === 2) {
+                        this.exitPlay();
+                        STATE.clickTimes = 0;
+                    } else {
+                        setTimeout(() => STATE.clickTimes = 0, OPTIONS.doubleClickDelay);
+                    }
+                    return;
+                }
+                if (!STATE.isPlaying) return;
+                if (STATE.clickTimer) clearTimeout(STATE.clickTimer);
+                STATE.clickTimes++;
+                if (STATE.clickTimes === 1) {
+                    STATE.clickTimer = setTimeout(() => {
+                        this.toggleController();
+                        STATE.clickTimes = 0;
+                    }, OPTIONS.doubleClickDelay);
+                } else if (STATE.clickTimes === 2) {
+                    clearTimeout(STATE.clickTimer);
+                    this.exitPlay();
+                    STATE.clickTimes = 0;
+                }
+            },
+
+            bindVideoEvents() {
+                DOM.videoCore.addEventListener('error', () => {
+                    DOM.loadingTip.style.display = 'none';
+                    DOM.videoErrorTip.style.display = 'flex';
+                    STATE.isVideoError = true;
+                    this.syncPlayPauseBtn();
+                });
+                DOM.errorRetryBtn.addEventListener('click', () => {
+                    STATE.isVideoError = false;
+                    DOM.videoErrorTip.style.display = 'none';
+                    DOM.loadingTip.style.display = 'block';
+                    DOM.videoCore.load();
+                    DOM.videoCore.play().then(() => {
+                        DOM.loadingTip.style.display = 'none';
+                        this.syncPlayPauseBtn();
+                    }).catch(err => {
+                        DOM.loadingTip.style.display = 'none';
+                        DOM.videoErrorTip.style.display = 'flex';
+                        STATE.isVideoError = true;
+                        this.syncPlayPauseBtn();
+                    });
+                });
+                DOM.videoCore.addEventListener('loadedmetadata', () => {
+                    DOM.timeDisplay.textContent = `00:00 / ${Utils.formatTime(DOM.videoCore.duration)}`;
+                });
+                DOM.videoCore.addEventListener('ended', () => {
+                    if (OPTIONS.autoReplay) {
+                        DOM.videoCore.currentTime = 0;
+                        DOM.videoCore.play();
+                    } else {
+                        this.syncPlayPauseBtn();
+                    }
+                });
+                DOM.videoCore.addEventListener('timeupdate', () => this.updateProgress());
+            },
+
+            bindEvents() {
+                DOM.fullscreenToggle.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    Utils.toggleFullScreen();
+                });
+
+                DOM.onlyPlayBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    DOM.floatPanel.style.display = 'block';
+                });
+                document.addEventListener('click', () => {
+                    DOM.floatPanel.style.display = 'none';
+                });
+                DOM.floatPanel.addEventListener('click', (e) => e.stopPropagation());
+                DOM.playPauseBtn.addEventListener('click', (e) => {
+                    this.togglePlay();
+                    e.stopPropagation();
+                });
+                DOM.exitBtn.addEventListener('click', () => this.exitPlay());
+                DOM.playerWrapper.addEventListener('click', () => this.handleScreenClick());
+
+                DOM.progressWrap.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const rect = DOM.progressWrap.getBoundingClientRect();
+                    const percent = (e.clientX - rect.left) / rect.width;
+                    DOM.videoCore.currentTime = percent * DOM.videoCore.duration;
+                    this.updateProgress();
+                    if (!STATE.isControllerShow && !STATE.isVideoError) {
+                        STATE.isControllerShow = true;
+                        DOM.coreController.classList.add('show');
+                    }
+                });
+                let isTouching = false;
+                DOM.progressWrap.addEventListener('touchstart', (e) => {
+                    if (!STATE.isVideoError) isTouching = true;
+                });
+                DOM.progressWrap.addEventListener('touchmove', (e) => {
+                    if (!isTouching || !DOM.videoCore.duration || STATE.isVideoError) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const rect = DOM.progressWrap.getBoundingClientRect();
+                    const touchX = e.touches[0].clientX;
+                    const percent = (touchX - rect.left) / rect.width;
+                    const targetTime = percent * DOM.videoCore.duration;
+                    DOM.videoCore.currentTime = Math.max(0, Math.min(DOM.videoCore.duration, targetTime));
+                    this.updateProgress();
+                });
+                DOM.progressWrap.addEventListener('touchend', () => { isTouching = false; });
+
+                DOM.settingBtn.addEventListener('click', (e) => {
+                    if (!STATE.isVideoError) DOM.settingPanel.classList.toggle('show');
+                    e.stopPropagation();
+                });
+                document.addEventListener('click', (e) => {
+                    if (!DOM.settingPanel.contains(e.target) && e.target !== DOM.settingBtn) {
+                        DOM.settingPanel.classList.remove('show');
+                        DOM.ratioOptions.classList.remove('show');
+                    }
+                });
+                document.querySelectorAll('.setting-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const type = item.dataset.type;
+                        if (type === 'ratio') {
+                            DOM.ratioOptions.classList.toggle('show');
+                        } else {
+                            this.toggleSetting(type);
+                        }
+                    });
+                });
+                DOM.ratioItems.forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.changeRatio(item.dataset.val);
+                    });
+                });
+
+                document.addEventListener('keydown', (e) => {
+                    if (STATE.isVideoError) {
+                        if (e.key === 'Escape') this.exitPlay();
+                        return;
+                    }
+                    if (!STATE.isPlaying && e.key !== 'f' && e.key !== 'F') return;
+                    switch (e.key.toLowerCase()) {
+                        case ' ': e.preventDefault(); this.togglePlay(); break;
+                        case 'f': e.preventDefault(); Utils.toggleFullScreen(); break;
+                        case 'arrowright': Utils.adjustSeek(true); break;
+                        case 'arrowleft': Utils.adjustSeek(false); break;
+                        case 'arrowup': Utils.adjustVolume(true); break;
+                        case 'arrowdown': Utils.adjustVolume(false); break;
+                        case 'escape': this.exitPlay(); break;
+                        default: break;
+                    }
+                });
+            }
+        };
+
+        window.onload = () => Player.init();
+    </script>
+</body>
+</html>
