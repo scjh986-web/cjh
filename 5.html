@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>音乐</title>
+    <style>
+        :root {
+            --apple-blue: #007AFF;
+            --ios-glass: rgba(255, 255, 255, 0.75);
+            --ios-border: rgba(255, 255, 255, 0.3);
+            --text-main: #1D1D1F;
+            --text-sub: #86868B;
+            --apple-ease: cubic-bezier(0.28, 0.11, 0.32, 1);
+        }
+
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            width: 100vw; height: 100vh; overflow: hidden;
+            background: #F5F5F7;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* 动态氛围背景 */
+        .aurora-bg {
+            position: fixed; inset: -50%; z-index: -1;
+            background: 
+                radial-gradient(circle at 20% 30%, #E3F2FF 0%, transparent 40%),
+                radial-gradient(circle at 80% 20%, #FFE3EC 0%, transparent 40%),
+                radial-gradient(circle at 50% 80%, #E6E6FA 0%, transparent 40%);
+            filter: blur(80px);
+            animation: auroraMove 20s infinite alternate linear;
+        }
+
+        @keyframes auroraMove {
+            from { transform: rotate(0deg) scale(1); }
+            to { transform: rotate(5deg) scale(1.1); }
+        }
+
+        /* 主容器 */
+        .player-card {
+            width: 90%; max-width: 400px; height: 85vh;
+            background: var(--ios-glass);
+            backdrop-filter: blur(50px) saturate(200%);
+            -webkit-backdrop-filter: blur(50px) saturate(200%);
+            border-radius: 50px;
+            border: 1px solid var(--ios-border);
+            box-shadow: 0 40px 100px rgba(0,0,0,0.08);
+            display: flex; flex-direction: column;
+            padding: 24px 28px; position: relative;
+            transition: all 0.6s var(--apple-ease);
+        }
+
+        /* 全屏适配修复 */
+        body.is-fullscreen .player-card {
+            width: 100vw; height: 100vh; max-width: none; border-radius: 0; border: none;
+            padding-top: env(safe-area-inset-top);
+        }
+
+        /* 顶部导航 */
+        .nav-bar {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+        }
+
+        .icon-btn {
+            width: 42px; height: 42px; border-radius: 50%; border: none;
+            background: rgba(0,0,0,0.04); cursor: pointer; color: var(--text-main);
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s var(--apple-ease);
+        }
+        .icon-btn:active { transform: scale(0.85); background: rgba(0,0,0,0.1); }
+
+        /* 封面与元数据 */
+        .hero-section {
+            display: flex; flex-direction: column; align-items: center; margin-bottom: 25px;
+        }
+
+        .cover-art {
+            width: 160px; height: 160px; border-radius: 32px;
+            background: linear-gradient(135deg, #fff, #D2D2D7);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.8s var(--apple-ease);
+        }
+        .playing .cover-art {
+            transform: scale(1.1) translateY(-8px);
+            box-shadow: 0 30px 60px rgba(0,122,255,0.15);
+        }
+
+        .song-info { text-align: center; margin-top: 18px; }
+        .song-info h1 { font-size: 22px; font-weight: 700; color: var(--text-main); letter-spacing: -0.5px; }
+        .song-info p { font-size: 14px; color: var(--apple-blue); font-weight: 600; margin-top: 4px; }
+
+        /* 列表容器 */
+        .list-viewport {
+            flex: 1; overflow-y: auto; margin: 10px -10px 25px; padding: 0 10px;
+            scrollbar-width: none;
+        }
+        .list-viewport::-webkit-scrollbar { display: none; }
+
+        .list-row {
+            padding: 14px 18px; margin-bottom: 6px; border-radius: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; transition: all 0.4s var(--apple-ease);
+            background: rgba(255,255,255,0.15);
+        }
+        .list-row:active { transform: scale(0.97); background: rgba(255,255,255,0.4); }
+        .list-row.active { background: #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.04); }
+        .list-row.active .row-name { color: var(--apple-blue); font-weight: 700; }
+
+        .row-name { font-size: 15px; color: var(--text-main); }
+        .row-time { font-size: 12px; color: var(--text-sub); font-variant-numeric: tabular-nums; }
+
+        /* 底部控制岛 */
+        .control-island {
+            background: rgba(255,255,255,0.5); border-radius: 35px; padding: 20px;
+            backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.4);
+        }
+
+        .prog-bar-clicker { width: 100%; height: 24px; display: flex; align-items: center; cursor: pointer; }
+        .prog-rail { width: 100%; height: 6px; background: rgba(0,0,0,0.06); border-radius: 3px; position: relative; }
+        .prog-fill { height: 100%; background: var(--text-main); border-radius: 3px; width: 0; position: relative; transition: width 0.1s linear; }
+        .prog-fill::after {
+            content: ''; position: absolute; right: -8px; top: -5px;
+            width: 16px; height: 16px; background: #fff; border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .time-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-sub); font-weight: 700; }
+
+        .btn-group { display: flex; justify-content: space-around; align-items: center; margin-top: 15px; }
+        .main-play {
+            width: 64px; height: 64px; background: var(--text-main); color: #fff; border-radius: 50%;
+            border: none; font-size: 24px; cursor: pointer; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        /* 苹果风新窗口下拉单 */
+        .ios-menu {
+            position: absolute; top: 75px; left: 28px; background: rgba(255,255,255,0.95);
+            border-radius: 22px; padding: 8px; box-shadow: 0 20px 50px rgba(0,0,0,0.12);
+            display: none; z-index: 999; border: 0.5px solid rgba(0,0,0,0.1); width: 180px;
+        }
+        .ios-menu.show { display: block; animation: applePop 0.4s var(--apple-ease); }
+        @keyframes applePop { from { opacity: 0; transform: scale(0.9) translateY(-10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+        .menu-item {
+            padding: 12px 18px; font-size: 14px; color: var(--apple-blue); cursor: pointer;
+            text-decoration: none; display: flex; justify-content: space-between; align-items: center;
+            border-radius: 12px; transition: background 0.2s;
+        }
+        .menu-item:hover { background: rgba(0,0,0,0.03); }
+    </style>
+</head>
+<body id="body">
+
+    <div class="aurora-bg"></div>
+
+    <div class="player-card" id="player">
+        <div class="nav-bar">
+            <button class="icon-btn" id="menuBtn">☰</button>
+            <div class="ios-menu" id="dropdown">
+                <div class="menu-item" onclick="window.open('https://wj.qq.com/s2/24204821/deb8/', '_blank')">
+                    问卷反馈 <span>↗</span>
+                </div>
+                <div class="menu-item" style="color:#86868B; border-top:0.5px solid #eee; margin-top:5px; font-size:12px;">
+                    版本 v4.0 Pro
+                </div>
+            </div>
+            <div style="font-weight: 800; font-size: 11px; color: var(--text-sub); letter-spacing: 1.2px;">APPLE MUSIC</div>
+            <button class="icon-btn" id="fsBtn">⛶</button>
+        </div>
+
+        <div class="hero-section">
+            <div class="cover-art" id="artwork">♬</div>
+            <div class="song-info">
+                <h1 id="curTitle">未选择歌曲</h1>
+                <p id="curStatus">READY</p>
+            </div>
+        </div>
+
+        <div class="list-viewport" id="listView"></div>
+
+        <div class="control-island">
+            <div class="prog-bar-clicker" id="progArea">
+                <div class="prog-rail">
+                    <div class="prog-fill" id="progFill"></div>
+                </div>
+            </div>
+            <div class="time-labels">
+                <span id="timeNow">00:00</span>
+                <span id="timeTotal">00:00</span>
+            </div>
+            <div class="btn-group">
+                <button class="icon-btn" id="loopBtn" style="font-size: 18px;">🔄</button>
+                <button class="icon-btn" id="prevBtn" style="font-size: 22px;">⏮</button>
+                <button class="main-play" id="playBtn">▶</button>
+                <button class="icon-btn" id="nextBtn" style="font-size: 22px;">⏭</button>
+                <button class="icon-btn" id="modeTxt" style="font-size: 10px; font-weight: 900;">LIST</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const songs = [
+            { title: "如果呢", src: "https://audio.jukehost.co.uk/K0B9RS1Q6zGB3acB3iTAQn4ZgyShMLft" },
+            { title: "你要的全拿走", src: "https://audio.jukehost.co.uk/FAEERy1UXSwS4TsMFQJdWM0OBL7qIXBy" },
+            { title: "去年夏天", src: "https://audio.jukehost.co.uk/Lohr8idSqX419cGq1SVcbaK9Ha22pWmm" },
+            { title: "Tikolin Purre(完整版)", src: "https://audio.jukehost.co.uk/bNPUZLinSUeDbFBVG6BZtRGC3V6nRMj8" },
+            { title: "开往春天的地铁", src: "https://audio.jukehost.co.uk/xPF8kXt11lpdYjESuJ91G0aCs8DRRKg3" },
+            { title: "可我只是海", src: "https://audio.jukehost.co.uk/p4Xz3DPvj7xZHCanTWfsSOiD9rXRMe8u" },
+            { title: "恋人", src: "https://audio.jukehost.co.uk/CF2QDF8i69GmyoqkbjSXXNOJX432jHsO" },
+            { title: "我离开了北方", src: "https://audio.jukehost.co.uk/7DU81TGOSSWtPzNkICGCzVGBVvnzX1dC" },
+            { title: "纯音乐", src: "https://audio.jukehost.co.uk/CbxiQzllFo1JrlBEG6rGj5wETtQEXgfS" },
+            { title: "转身离开", src: "https://audio.jukehost.co.uk/RnRY7SBMqYN7eKo5zm9ldPir0EtUuOf6" },
+            { title: "4.55", src: "https://audio.jukehost.co.uk/qS1WdNgOymFDdoaG71E4MsHwIyTR9A5T" },
+            { title: "Savage Love", src: "https://audio.jukehost.co.uk/4cpT2il2kiEAYqRPEgTuzo7m1DCLo8ZE" },
+            { title: "沉溺", src: "https://audio.jukehost.co.uk/J20KmhLH9m66PThKiwXOEOcyJmcIg3VP" },
+            { title: "我已经牵你手", src: "https://audio.jukehost.co.uk/WjmKFTK3go3AXfnGXVmh4jSeYhGtK71h" },
+            { title: "武家坡", src: "https://audio.jukehost.co.uk/rBQqWST2aQNn3fxAqNTRVy8DewVlc4Th" },
+            { title: "心如止水", src: "https://audio.jukehost.co.uk/GqRYNrT2pkg7EYvcfcwjWCUfsGIDsMHz" },
+            { title: "终于", src: "https://audio.jukehost.co.uk/8tomXKBfn17ebxmiBBGPgBnY6QniJd0P" },
+            { title: "晴天", src: "https://audio.jukehost.co.uk/b1iDoPgddrCxI89xAB5pwMnSMPEYwvU3" },
+            { title: "去找你妹妹吧", src: "https://audio.jukehost.co.uk/AiHrMeTcSKqe3hprNOOjZoopV53h2Nza" },
+            { title: "歌曲1", src: "https://audio.jukehost.co.uk/RTHgobHOJn2qxbljcktBXcmpDml2iWfg" },
+            { title: "歌曲2", src: "https://audio.jukehost.co.uk/JxFObG9UdNDICloJwP9LO5Ubt8wFQ4VO" }
+        ];
+
+        const audio = new Audio();
+        let currentIndex = -1, isPlaying = false, loopMode = 'list';
+
+        // 初始化
+        function init() {
+            const listEl = document.getElementById('listView');
+            songs.forEach((s, i) => {
+                const row = document.createElement('div');
+                row.className = 'list-row';
+                row.innerHTML = `<span class="row-name">${i+1}. ${s.title}</span><span class="row-time" id="d-${i}">--:--</span>`;
+                row.onclick = () => playSong(i);
+                listEl.appendChild(row);
+
+                const t = new Audio(s.src);
+                t.onloadedmetadata = () => document.getElementById(`d-${i}`).innerText = formatTime(t.duration);
+            });
+        }
+
+        function playSong(i) {
+            currentIndex = i;
+            audio.src = songs[i].src;
+            document.getElementById('curTitle').innerText = songs[i].title;
+            document.querySelectorAll('.list-row').forEach((el, idx) => el.classList.toggle('active', idx === i));
+            
+            // 自动居中滚动
+            const activeRow = document.querySelector('.list-row.active');
+            activeRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            togglePlay(true);
+        }
+
+        function togglePlay(state) {
+            isPlaying = state !== undefined ? state : !isPlaying;
+            isPlaying ? audio.play() : audio.pause();
+            document.getElementById('playBtn').innerText = isPlaying ? 'Ⅱ' : '▶';
+            document.getElementById('player').classList.toggle('playing', isPlaying);
+            document.getElementById('curStatus').innerText = isPlaying ? "NOW PLAYING" : "PAUSED";
+        }
+
+        // 事件监听
+        document.getElementById('playBtn').onclick = () => currentIndex === -1 ? playSong(0) : togglePlay();
+        document.getElementById('nextBtn').onclick = () => playSong((currentIndex + 1) % songs.length);
+        document.getElementById('prevBtn').onclick = () => playSong((currentIndex - 1 + songs.length) % songs.length);
+        
+        document.getElementById('loopBtn').onclick = function() {
+            const txt = document.getElementById('modeTxt');
+            if(loopMode === 'list') { 
+                loopMode = 'single'; this.innerText = '🔂'; txt.innerText = 'SINGLE';
+            } else { 
+                loopMode = 'list'; this.innerText = '🔄'; txt.innerText = 'LIST';
+            }
+        };
+
+        audio.onended = () => loopMode === 'single' ? audio.play() : document.getElementById('nextBtn').click();
+
+        audio.ontimeupdate = () => {
+            const pct = (audio.currentTime / audio.duration) * 100 || 0;
+            document.getElementById('progFill').style.width = pct + '%';
+            document.getElementById('timeNow').innerText = formatTime(audio.currentTime);
+            if(!isNaN(audio.duration)) document.getElementById('timeTotal').innerText = formatTime(audio.duration);
+        };
+
+        document.getElementById('progArea').onclick = (e) => {
+            const rect = document.querySelector('.prog-rail').getBoundingClientRect();
+            audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+        };
+
+        function formatTime(s) {
+            const m = Math.floor(s/60), sec = Math.floor(s%60);
+            return `${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+        }
+
+        // 全屏逻辑
+        const fsBtn = document.getElementById('fsBtn');
+        fsBtn.onclick = () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+                document.body.classList.add('is-fullscreen');
+                fsBtn.innerText = '⛌';
+            } else {
+                document.exitFullscreen();
+                document.body.classList.remove('is-fullscreen');
+                fsBtn.innerText = '⛶';
+            }
+        };
+
+        // 菜单切换
+        document.getElementById('menuBtn').onclick = (e) => {
+            e.stopPropagation();
+            document.getElementById('dropdown').classList.toggle('show');
+        };
+        document.onclick = () => document.getElementById('dropdown').classList.remove('show');
+
+        init();
+    </script>
+</body>
+</html>
