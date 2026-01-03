@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>个人介绍</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --apple-blue: #007AFF;
+      --apple-bg: #F5F5F7;
+      --apple-card: rgba(255, 255, 255, 0.75);
+      --ios-radius: 28px;
+      --spring-easing: cubic-bezier(0.3, 1.5, 0.6, 1);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background-color: var(--apple-bg); color: #1D1D1F; overflow-x: hidden; -webkit-font-smoothing: antialiased; }
+
+    /* --- PC端独有增强样式 --- */
+    #pc-canvas { display: none; position: fixed; top: 0; left: 0; z-index: -1; }
+    .custom-cursor { display: none; }
+
+    @media (min-width: 1024px) {
+      body { background-color: #08080a; display: flex; justify-content: center; align-items: center; min-height: 100vh; perspective: 2000px; cursor: none; }
+      #pc-canvas { display: block; }
+      .custom-cursor { display: block; position: fixed; width: 24px; height: 24px; background: #fff; border-radius: 50%; pointer-events: none; z-index: 99999; mix-blend-mode: difference; transition: transform 0.1s ease-out; }
+      .pc-wrapper { width: 420px; height: 90vh; background: var(--apple-bg); border-radius: 54px; border: 12px solid #1d1d1f; box-shadow: 0 50px 100px rgba(0,0,0,0.6); position: relative; overflow: hidden; transform-style: preserve-3d; transition: transform 0.1s ease-out; }
+      .pc-inner-scroller { width: 100%; height: 100%; overflow-y: auto; scrollbar-width: none; }
+      .pc-inner-scroller::-webkit-scrollbar { display: none; }
+      .modal-overlay { position: absolute; border-radius: 42px 42px 0 0; }
+      .progress-bar { position: absolute; }
+    }
+
+    /* --- 核心组件样式 (完全恢复原始比例) --- */
+    .progress-bar { position: fixed; top: 0; left: 0; width: 0%; height: 4px; background: linear-gradient(90deg, #007AFF, #5856D6, #FF2D55); z-index: 9999; }
+    .hero { padding: 80px 20px 30px; text-align: center; animation: slideUpIn 0.8s var(--spring-easing); }
+    @keyframes slideUpIn { from { opacity: 0; transform: translateY(30px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    .avatar-self { width: 110px; height: 110px; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 15px 35px rgba(0,0,0,0.08); margin: 0 auto 15px; object-fit: cover; }
+    .hero-slogan { max-width: 280px; margin: 12px auto 0; font-size: 14px; color: #86868B; line-height: 1.6; font-weight: 500; }
+    .module-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; max-width: 500px; margin: 30px auto 40px; padding: 0 20px; }
+    .apple-card { background: var(--apple-card); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.6); border-radius: var(--ios-radius); aspect-ratio: 1/1; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.4s var(--spring-easing); box-shadow: 0 8px 24px rgba(0,0,0,0.04); cursor: pointer; }
+    .apple-card:active { transform: scale(0.92); }
+    .card-icon { width: 40px; height: 40px; margin-bottom: 12px; }
+    .card-label { font-weight: 700; font-size: 15px; letter-spacing: -0.2px; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); z-index: 2000; opacity: 0; pointer-events: none; transition: 0.5s ease; display: flex; align-items: flex-end; justify-content: center; }
+    .modal-overlay.active { opacity: 1; pointer-events: auto; }
+    .modal-window { width: 100%; max-width: 550px; background: #fff; border-radius: 36px 36px 0 0; padding: 32px 24px; transform: translateY(100%); transition: 0.6s var(--spring-easing); max-height: 88vh; overflow-y: auto; }
+    .modal-overlay.active .modal-window { transform: translateY(0); }
+    .work-card { background: #F5F5F7; border-radius: 22px; padding: 16px; margin-bottom: 12px; display: flex; align-items: center; gap: 14px; border: 1px solid rgba(0,0,0,0.02); }
+    .work-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 20px; flex-shrink: 0; }
+    .btn-use { background: #fff; color: var(--apple-blue); padding: 7px 16px; border-radius: 16px; font-weight: 700; font-size: 13px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); white-space: nowrap; }
+    .disclaimer-box { background: rgba(0,0,0,0.03); border-radius: 18px; padding: 18px; margin-top: 20px; font-size: 12px; color: #86868B; line-height: 1.8; text-align: left; }
+  </style>
+</head>
+<body>
+
+  <div class="custom-cursor" id="cursor"></div>
+  <canvas id="pc-canvas"></canvas>
+
+  <div class="pc-wrapper" id="pc-wrapper">
+    <div class="pc-inner-scroller" id="scroll-node">
+      
+      <div class="progress-bar" id="progress-bar"></div>
+
+      <section class="hero">
+        <img src="https://s41.ax1x.com/2025/12/13/pZMsPij.jpg" class="avatar-self" alt="CJH">
+        <h1 class="text-3xl font-extrabold tracking-tight">CJH</h1>
+        <p class="hero-slogan">我是CJH 一名16岁的在读高中生 对编程有着浓厚的兴趣和一股不服输的钻劲</p>
+      </section>
+
+      <div class="module-grid">
+        <div class="apple-card" onclick="openModal('about-modal')">
+          <img src="https://cdn-icons-png.flaticon.com/512/1144/1144760.png" class="card-icon">
+          <span class="card-label">关于我</span>
+        </div>
+        <div class="apple-card" onclick="openModal('works-modal')">
+          <img src="https://cdn-icons-png.flaticon.com/512/3209/3209265.png" class="card-icon">
+          <span class="card-label">作品集</span>
+        </div>
+        <div class="apple-card" onclick="openModal('skills-modal')">
+          <img src="https://cdn-icons-png.flaticon.com/512/1055/1055666.png" class="card-icon">
+          <span class="card-label">技能图谱</span>
+        </div>
+        <div class="apple-card" onclick="openModal('contact-modal')">
+          <img src="https://cdn-icons-png.flaticon.com/512/3062/3062634.png" class="card-icon">
+          <span class="card-label">联系建议</span>
+        </div>
+      </div>
+
+      <div id="about-modal" class="modal-overlay"><div class="modal-window">
+        <div class="flex justify-between items-center mb-8"><h3 class="text-2xl font-bold">关于我</h3><button onclick="closeAll()" class="text-blue-500 font-bold">完成</button></div>
+        <div class="space-y-6 text-gray-700 leading-relaxed tracking-wide">
+          <p>性格上 我踏实肯干 遇到问题不轻易放弃 做事追求实在 开发产品总想着让用户用得顺手 生活里爱观察 爱琢磨 相信点滴积累的力量 用真诚的态度对待每一次尝试 在探索中慢慢成长</p>
+          <p>我性格外向但不失沉稳 既能快速融入团队协作 也能独立承担核心任务 空闲时喜欢研究新的编程技巧 偶尔也会剪辑短视频记录生活与编程学习的点滴</p>
+        </div>
+      </div></div>
+
+      <div id="works-modal" class="modal-overlay"><div class="modal-window">
+        <div class="flex justify-between items-center mb-8"><h3 class="text-2xl font-bold">精选作品</h3><button onclick="closeAll()" class="text-blue-500 font-bold">完成</button></div>
+        <div id="works-list">
+          <div class="work-card"><div class="work-icon" style="background:linear-gradient(135deg,#FF3B30,#FF9500)">政</div><div class="flex-1"><b>教育部信息公开</b></div><a href="http://www.moe.gov.cn/srcsite/A06/s3321/202512/t20251216_1423634.html" target="_blank" class="btn-use">访问</a></div>
+          <div class="work-card"><div class="work-icon" style="background:linear-gradient(135deg,#5856D6,#AF52DE)">视</div><div class="flex-1"><b>在线视频播放器</b></div><a href="10.html" target="_blank" class="btn-use">开启</a></div>
+          <div class="work-card"><div class="work-icon" style="background:linear-gradient(135deg,#007AFF,#5AC8FA)">博</div><div class="flex-1"><b>个人博客主页</b></div><a href="1.html" target="_blank" class="btn-use">阅读</a></div>
+          <div class="work-card"><div class="work-icon" style="background:linear-gradient(135deg,#34C759,#32D74B)">化</div><div class="flex-1"><b>交互式元素周期表</b></div><a href="2.html" target="_blank" class="btn-use">查看</a></div>
+          <div class="work-card"><div class="work-icon" style="background:linear-gradient(135deg,#FF2D55,#FF5E3A)">倒</div><div class="flex-1"><b>倒数日工具</b></div><a href="3.html" target="_blank" class="btn-use">打开</a></div>
+          <div class="work-card"><div class="work-icon" style="background:linear-gradient(135deg,#8E8E93,#636366)">密</div><div class="flex-1"><b>Unicode 加密工具</b></div><a href="4.html" target="_blank" class="btn-use">运行</a></div>
+          <div class="work-card"><div class="work-icon" style="background:linear-gradient(135deg,#AF52DE,#FF2D55)">音</div><div class="flex-1"><b>在线音乐播放器</b></div><a href="5.html" target="_blank" class="btn-use">听歌</a></div>
+          <div class="work-card"><div class="work-icon" style="background:linear-gradient(135deg,#5AC8FA,#34C759)">时</div><div class="flex-1"><b>陕西时间</b></div><a href="6.html" target="_blank" class="btn-use">同步</a></div>
+          <div class="work-card"><div class="work-icon" style="background:linear-gradient(135deg,#FFCC00,#FF9500)">游</div><div class="flex-1"><b>终极塔防</b></div><a href="7.html" target="_blank" class="btn-use">开战</a></div>
+          <div class="work-card"><div class="work-icon" style="background:linear-gradient(135deg,#FF3B30,#5856D6)">演</div><div class="flex-1"><b>导弹发射模拟</b></div><a href="8.html" target="_blank" class="btn-use">发射</a></div>
+          <div class="work-card"><div class="work-icon" style="background:linear-gradient(135deg,#FFD60A,#FF9500)">光</div><div class="flex-1"><b>光反射演示</b></div><a href="9.html" target="_blank" class="btn-use">实验</a></div>
+        </div>
+      </div></div>
+
+      <div id="skills-modal" class="modal-overlay"><div class="modal-window">
+        <div class="flex justify-between items-center mb-6"><h3 class="text-2xl font-bold">技能图谱</h3><button onclick="closeAll()" class="text-blue-500 font-bold">完成</button></div>
+        <canvas id="skills-chart" class="mb-8"></canvas>
+        <div class="space-y-6">
+          <div><h4 class="text-xs font-bold text-gray-400 uppercase mb-3">核心技能</h4>
+            <span class="inline-block bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold">辅助编写或修改软件代码</span>
+          </div>
+          <div><h4 class="text-xs font-bold text-gray-400 uppercase mb-3">辅助技能</h4>
+            <div class="flex flex-wrap gap-2">
+              <span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold">UI设计基础</span>
+              <span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold">HTML基础</span>
+              <span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold">短视频剪辑工具掌握</span>
+            </div>
+          </div>
+          <div><h4 class="text-xs font-bold text-gray-400 uppercase mb-3">编辑软件</h4>
+            <div class="flex flex-wrap gap-2"><span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold">WebCat</span><span class="bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-xs font-bold">AndLua+</span></div>
+          </div>
+        </div>
+      </div></div>
+
+      <div id="contact-modal" class="modal-overlay"><div class="modal-window">
+        <div class="flex justify-between items-center mb-6"><h3 class="text-2xl font-bold">联系建议</h3><button onclick="closeAll()" class="text-blue-500 font-bold">完成</button></div>
+        <div class="space-y-3">
+          <div class="p-4 bg-gray-50 rounded-2xl flex justify-between text-sm"><span>微信</span><b>chengjiahuicjh254</b></div>
+          <div class="p-4 bg-gray-50 rounded-2xl flex justify-between text-sm"><span>QQ</span><b>3074702258</b></div>
+          <button onclick="window.open('https://wj.qq.com/s2/24102021/c843/', '_blank')" class="w-full py-5 bg-blue-500 text-white rounded-2xl font-bold mt-4 shadow-lg shadow-blue-100">提交在线建议</button>
+          
+          <div class="disclaimer-box">
+            <strong>免责声明</strong><br>
+            本页面展示的作品均为个人编程练习及兴趣作品 本站仅用于个人作品展示 不涉及任何商业用途 作品中引用的部分外部链接及数据不对其长期有效性及准确性做担保 如有内容侵犯您的权益 请及时联系处理
+          </div>
+        </div>
+      </div></div>
+
+      <footer class="max-w-[500px] mx-auto px-5 pb-16 mt-10">
+        <div class="text-center text-[11px] text-gray-400 leading-relaxed">
+          <p class="mb-2 font-semibold">©2025 CJH 版权所有</p>
+          <div class="flex flex-col gap-1 items-center">
+            <a href="https://beian.miit.gov.cn/" target="_blank" class="hover:text-blue-500">陕ICP备10131102号-1</a>
+            <a href="http://www.beian.gov.cn/" target="_blank" class="hover:text-blue-500">陕公安备10131102号-1</a>
+            <p class="mt-2 text-[10px] opacity-60">本站仅用于个人作品展示 不涉及商业用途</p>
+          </div>
+        </div>
+      </footer>
+      
+    </div> </div> <script>
+    const isPC = window.innerWidth >= 1024;
+    const scrollNode = isPC ? document.getElementById('scroll-node') : window;
+
+    function openModal(id) {
+      document.getElementById(id).classList.add('active');
+      if (isPC) document.getElementById('scroll-node').style.overflow = 'hidden';
+      else document.body.style.overflow = 'hidden';
+      if(id === 'skills-modal') setTimeout(initChart, 300);
+    }
+    function closeAll() {
+      document.querySelectorAll('.modal-overlay').forEach(ov => ov.classList.remove('active'));
+      if (isPC) document.getElementById('scroll-node').style.overflow = 'auto';
+      else document.body.style.overflow = 'auto';
+    }
+    document.querySelectorAll('.modal-overlay').forEach(ov => {
+      ov.onclick = (e) => { if(e.target === ov) closeAll(); };
+    });
+
+    function initChart() {
+      const ctx = document.getElementById('skills-chart').getContext('2d');
+      if(window.myChart) window.myChart.destroy();
+      window.myChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: ['代码开发', 'UI设计', 'HTML', '剪辑', '工具栈'],
+          datasets: [{ data: [95, 80, 88, 75, 92], backgroundColor: 'rgba(0,122,255,0.1)', borderColor: '#007AFF', borderWidth: 3 }]
+        },
+        options: { scales: { r: { beginAtZero: true, max: 100, ticks: { display: false } } }, plugins: { legend: { display: false } } }
+      });
+    }
+
+    scrollNode.onscroll = () => {
+      let p;
+      if(isPC) p = (scrollNode.scrollTop / (scrollNode.scrollHeight - scrollNode.clientHeight)) * 100;
+      else p = (window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100;
+      document.getElementById('progress-bar').style.width = p + '%';
+    };
+
+    if(isPC) {
+      const wrapper = document.getElementById('pc-wrapper');
+      const cursor = document.getElementById('cursor');
+      const canvas = document.getElementById('pc-canvas');
+      const ctx = canvas.getContext('2d');
+      document.addEventListener('mousemove', (e) => {
+        const x = (window.innerWidth / 2 - e.pageX) / 35;
+        const y = (window.innerHeight / 2 - e.pageY) / 35;
+        wrapper.style.transform = `rotateY(${-x}deg) rotateX(${y}deg)`;
+        cursor.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+      });
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      let particles = [];
+      class Particle {
+        constructor() {
+          this.x = Math.random() * canvas.width;
+          this.y = Math.random() * canvas.height;
+          this.size = Math.random() * 1.5;
+          this.vx = (Math.random() - 0.5) * 0.4;
+          this.vy = (Math.random() - 0.5) * 0.4;
+        }
+        draw() { ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill(); }
+        update() { this.x += this.vx; this.y += this.vy; if(this.x<0 || this.x>canvas.width) this.vx *= -1; if(this.y<0 || this.y>canvas.height) this.vy *= -1; }
+      }
+      for(let i=0; i<80; i++) particles.push(new Particle());
+      function anim() { ctx.clearRect(0,0,canvas.width, canvas.height); particles.forEach(p => { p.update(); p.draw(); }); requestAnimationFrame(anim); }
+      anim();
+    }
+  </script>
+</body>
+</html>
