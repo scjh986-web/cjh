@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>CJH | 个人空间</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --accent: #007AFF;
+      --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e4e9f2 100%);
+      --glass: rgba(255, 255, 255, 0.7);
+      --text-main: #1d1d1f;
+      --text-sub: #86868b;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', system-ui, sans-serif; }
+    
+    body { 
+      background: var(--bg-gradient); 
+      color: var(--text-main); 
+      height: 100vh; 
+      width: 100vw; 
+      overflow: hidden; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+    }
+
+    /* 背景流体装饰 */
+    .blob {
+      position: absolute; width: 50vw; height: 50vw; 
+      background: radial-gradient(circle, rgba(0,122,255,0.08) 0%, transparent 70%);
+      top: -10vw; right: -10vw; z-index: 1; pointer-events: none;
+    }
+    .blob-2 {
+      position: absolute; width: 40vw; height: 40vw; 
+      background: radial-gradient(circle, rgba(175,82,222,0.05) 0%, transparent 70%);
+      bottom: -10vw; left: -10vw; z-index: 1; pointer-events: none;
+    }
+
+    #bg-canvas { position: fixed; inset: 0; z-index: 0; opacity: 0.5; }
+
+    /* 主界面布局 */
+    .dashboard {
+      position: relative; z-index: 10;
+      width: 94vw; height: 88vh;
+      display: grid;
+      grid-template-columns: 320px 1fr 300px;
+      gap: 24px;
+    }
+
+    /* 毛玻璃卡片 */
+    .glass-card {
+      background: var(--glass);
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      border: 1px solid rgba(255,255,255,0.8);
+      border-radius: 36px;
+      padding: 30px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.04);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 左侧：名片 */
+    .profile-section { text-align: center; }
+    .avatar { width: 110px; height: 110px; border-radius: 32px; margin: 0 auto 20px; border: 3px solid #fff; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+    .name { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
+    .badge { background: #1d1d1f; color: #fff; padding: 4px 14px; border-radius: 10px; font-size: 12px; font-weight: 600; display: inline-block; margin-bottom: 25px; }
+    
+    .intro-box { background: rgba(255,255,255,0.4); padding: 20px; border-radius: 24px; font-size: 14px; line-height: 1.7; text-align: left; border: 1px solid rgba(255,255,255,0.5); }
+
+    /* 中间：作品 */
+    .works-section { overflow: hidden; }
+    .section-label { font-size: 12px; font-weight: 800; color: var(--text-sub); text-transform: uppercase; margin-bottom: 18px; display: block; letter-spacing: 1px; }
+    
+    .works-scroll { overflow-y: auto; flex: 1; padding-right: 5px; }
+    .works-scroll::-webkit-scrollbar { width: 4px; }
+    .works-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 10px; }
+
+    .works-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .work-card { 
+      background: #fff; border-radius: 22px; padding: 16px; 
+      display: flex; align-items: center; gap: 14px; transition: 0.3s;
+      text-decoration: none; color: inherit; border: 1px solid rgba(0,0,0,0.02);
+    }
+    .work-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.06); border-color: var(--accent); }
+    .work-icon { width: 44px; height: 44px; border-radius: 14px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 18px; }
+
+    /* 右侧：数据 */
+    .data-section { display: flex; flex-direction: column; gap: 24px; }
+    .skill-info { flex: 1; }
+    .contact-box { background: #fff; border-radius: 28px; padding: 24px; border: 1px solid rgba(0,0,0,0.02); }
+    .contact-item { display: flex; justify-content: space-between; font-size: 13px; margin-top: 12px; font-weight: 600; }
+    .contact-item span { color: var(--text-sub); }
+
+    /* 底部：居中版权 */
+    .footer-container {
+      position: fixed; bottom: 2vh; left: 0; width: 100%;
+      text-align: center; z-index: 5; padding: 0 40px;
+    }
+    .footer-links { font-size: 11px; color: var(--text-sub); margin-bottom: 8px; }
+    .footer-links a { margin: 0 12px; text-decoration: none; color: inherit; transition: 0.2s; }
+    .footer-links a:hover { color: var(--accent); }
+    .disclaimer { font-size: 10px; color: #b0b0b5; max-width: 900px; margin: 0 auto; line-height: 1.6; }
+
+    #chart-container { height: 180px; margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <canvas id="bg-canvas"></canvas>
+  <div class="blob"></div>
+  <div class="blob-2"></div>
+
+  <div class="dashboard">
+    <aside class="glass-card profile-section">
+      <img src="https://s41.ax1x.com/2025/12/13/pZMsPij.jpg" class="avatar">
+      <div class="badge">开发者 / 16岁高中生</div>
+      <h1 class="name">CJH</h1>
+      <div class="intro-box">
+        <p><b>关于我：</b>性格踏实，遇到问题不轻易放弃，做事追求实在，开发产品总想着让用户顺手。</p>
+        <p class="mt-2">爱观察、爱琢磨，相信点滴积累的力量，用真诚对待每一次尝试。</p>
+      </div>
+      <div class="mt-auto">
+        <button onclick="window.open('https://wj.qq.com/s2/24102021/c843/')" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100 hover:scale-105 transition-all">提交建议反馈</button>
+      </div>
+    </aside>
+
+    <main class="glass-card works-section">
+      <span class="section-label">精选项目库 (11个项目)</span>
+      <div class="works-scroll">
+        <div class="works-grid">
+          <a href="http://www.moe.gov.cn/srcsite/A06/s3321/202512/t20251216_1423634.html" target="_blank" class="work-card">
+            <div class="work-icon" style="background: linear-gradient(135deg,#FF3B30,#FF9500)">政</div>
+            <div class="flex-1 text-sm font-bold">教育部信息公开</div>
+            <img src="https://cdn-icons-png.flaticon.com/512/271/271228.png" class="w-3 h-3 opacity-30">
+          </a>
+          <a href="10.html" class="work-card">
+            <div class="work-icon" style="background: linear-gradient(135deg,#5856D6,#AF52DE)">视</div>
+            <div class="flex-1 text-sm font-bold">在线视频播放器</div>
+            <img src="https://cdn-icons-png.flaticon.com/512/271/271228.png" class="w-3 h-3 opacity-30">
+          </a>
+          <a href="p1.html" class="work-card">
+            <div class="work-icon" style="background: linear-gradient(135deg,#007AFF,#5AC8FA)">博</div>
+            <div class="flex-1 text-sm font-bold">个人博客主页</div>
+            <img src="https://cdn-icons-png.flaticon.com/512/271/271228.png" class="w-3 h-3 opacity-30">
+          </a>
+          <a href="2.html" class="work-card">
+            <div class="work-icon" style="background: linear-gradient(135deg,#34C759,#32D74B)">化</div>
+            <div class="flex-1 text-sm font-bold">交互元素周期表</div>
+            <img src="https://cdn-icons-png.flaticon.com/512/271/271228.png" class="w-3 h-3 opacity-30">
+          </a>
+          <a href="3.html" class="work-card">
+            <div class="work-icon" style="background: linear-gradient(135deg,#FF2D55,#FF5E3A)">倒</div>
+            <div class="flex-1 text-sm font-bold">倒数日工具</div>
+            <img src="https://cdn-icons-png.flaticon.com/512/271/271228.png" class="w-3 h-3 opacity-30">
+          </a>
+          <a href="4.html" class="work-card">
+            <div class="work-icon" style="background: linear-gradient(135deg,#8E8E93,#636366)">密</div>
+            <div class="flex-1 text-sm font-bold">Unicode 加密</div>
+            <img src="https://cdn-icons-png.flaticon.com/512/271/271228.png" class="w-3 h-3 opacity-30">
+          </a>
+          <a href="5.html" class="work-card">
+            <div class="work-icon" style="background: linear-gradient(135deg,#AF52DE,#FF2D55)">音</div>
+            <div class="flex-1 text-sm font-bold">在线音乐播放器</div>
+            <img src="https://cdn-icons-png.flaticon.com/512/271/271228.png" class="w-3 h-3 opacity-30">
+          </a>
+          <a href="6.html" class="work-card">
+            <div class="work-icon" style="background: linear-gradient(135deg,#5AC8FA,#34C759)">时</div>
+            <div class="flex-1 text-sm font-bold">陕西时间同步</div>
+            <img src="https://cdn-icons-png.flaticon.com/512/271/271228.png" class="w-3 h-3 opacity-30">
+          </a>
+          <a href="7.html" class="work-card">
+            <div class="work-icon" style="background: linear-gradient(135deg,#FFCC00,#FF9500)">游</div>
+            <div class="flex-1 text-sm font-bold">终极塔防游戏</div>
+            <img src="https://cdn-icons-png.flaticon.com/512/271/271228.png" class="w-3 h-3 opacity-30">
+          </a>
+          <a href="8.html" class="work-card">
+            <div class="work-icon" style="background: linear-gradient(135deg,#FF3B30,#5856D6)">演</div>
+            <div class="flex-1 text-sm font-bold">导弹发射模拟</div>
+            <img src="https://cdn-icons-png.flaticon.com/512/271/271228.png" class="w-3 h-3 opacity-30">
+          </a>
+          <a href="9.html" class="work-card">
+            <div class="work-icon" style="background: linear-gradient(135deg,#FFD60A,#FF9500)">光</div>
+            <div class="flex-1 text-sm font-bold">光反射演示</div>
+            <img src="https://cdn-icons-png.flaticon.com/512/271/271228.png" class="w-3 h-3 opacity-30">
+          </a>
+        </div>
+      </div>
+    </main>
+
+    <div class="data-section">
+      <section class="glass-card skill-info">
+        <span class="section-label">技术能力图谱</span>
+        <div id="chart-container">
+          <canvas id="skills-chart"></canvas>
+        </div>
+        <div class="mt-4 space-y-2">
+          <div class="text-[12px] p-3 bg-blue-50/50 rounded-xl text-blue-600 font-bold border border-blue-100/50">核心：辅助编写或修改软件代码</div>
+          <div class="flex flex-wrap gap-1">
+            <span class="text-[10px] bg-white/50 border border-gray-100 px-2 py-1 rounded-md">视觉设计</span>
+            <span class="text-[10px] bg-white/50 border border-gray-100 px-2 py-1 rounded-md">HTML5</span>
+            <span class="text-[10px] bg-white/50 border border-gray-100 px-2 py-1 rounded-md">WebCat</span>
+            <span class="text-[10px] bg-white/50 border border-gray-100 px-2 py-1 rounded-md">AndLua+</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="contact-box shadow-sm">
+        <span class="section-label">获取联系方式</span>
+        <div class="contact-item"><span>微信 WeChat</span><b>chengjiahuicjh254</b></div>
+        <div class="contact-item"><span>QQ</span><b>3074702258</b></div>
+      </section>
+    </div>
+  </div>
+
+  <footer class="footer-container">
+    <div class="footer-links">
+      <span>© 2025 CJH 个人作品集</span>
+      <a href="https://beian.miit.gov.cn/">陕ICP备10131102号-1</a>
+      <a href="#">陕公安备10131102号-1</a>
+    </div>
+    <div class="disclaimer">
+      免责声明：本页面展示的作品均为个人编程练习及兴趣作品。本站仅用于个人作品展示，不涉及任何商业用途。如有权益问题请联系处理。
+    </div>
+  </footer>
+
+  <script>
+    const ctx = document.getElementById('skills-chart').getContext('2d');
+    new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: ['代码开发', '视觉设计', '网页技术', '后期剪辑', '开发工具'],
+        datasets: [{
+          data: [95, 80, 88, 75, 92],
+          backgroundColor: 'rgba(0,122,255,0.1)',
+          borderColor: '#007AFF',
+          borderWidth: 2,
+          pointRadius: 0
+        }]
+      },
+      options: {
+        scales: { r: { beginAtZero: true, max: 100, ticks: { display: false }, grid: { color: 'rgba(0,0,0,0.03)' }, angleLines: { color: 'rgba(0,0,0,0.03)' } } },
+        plugins: { legend: { display: false } },
+        maintainAspectRatio: false
+      }
+    });
+
+    // 背景粒子逻辑
+    const canvas = document.getElementById('bg-canvas');
+    const c = canvas.getContext('2d');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    let particles = [];
+    class P {
+      constructor() {
+        this.x = Math.random() * canvas.width; this.y = Math.random() * canvas.height;
+        this.s = Math.random() * 2; this.vx = (Math.random() - 0.5) * 0.3; this.vy = (Math.random() - 0.5) * 0.3;
+      }
+      u() {
+        this.x += this.vx; this.y += this.vy;
+        if(this.x<0||this.x>canvas.width) this.vx*=-1; if(this.y<0||this.y>canvas.height) this.vy*=-1;
+        c.fillStyle='rgba(0,122,255,0.05)';
+        c.beginPath(); c.arc(this.x, this.y, this.s, 0, Math.PI*2); c.fill();
+      }
+    }
+    for(let i=0; i<60; i++) particles.push(new P());
+    function draw() {
+      c.clearRect(0,0,canvas.width,canvas.height);
+      particles.forEach(p => p.u());
+      requestAnimationFrame(draw);
+    }
+    draw();
+    window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+  </script>
+</body>
+</html>
