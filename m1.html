@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>CJH | 博客</title>
+    <style>
+        :root { --accent: #007aff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            background: #fff; 
+            font-family: -apple-system, "SF Pro Display", sans-serif; 
+            overflow: hidden; /* 必须禁用原生滚动以实现空间堆叠 */
+            height: 100vh;
+        }
+
+        /* 1. 动态流体层：填充空间 */
+        .ambient-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;
+            background: radial-gradient(circle at 50% 50%, #f2f2f7 0%, #fff 100%);
+        }
+        .blob {
+            position: absolute; width: 350px; height: 350px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(0,113,227,0.06) 0%, transparent 70%);
+            filter: blur(40px); animation: drift 20s infinite alternate linear;
+        }
+        @keyframes drift { from { transform: translate(-10%, -20%); } to { transform: translate(20%, 20%); } }
+
+        /* 2. 功能性导航岛：可点击控制 */
+        .nav-header {
+            position: fixed; top: 20px; left: 20px; right: 20px; z-index: 1000;
+            background: rgba(255,255,255,0.7); backdrop-filter: blur(20px) saturate(180%);
+            height: 60px; border-radius: 30px; border: 0.5px solid rgba(0,0,0,0.05);
+            display: flex; align-items: center; justify-content: space-around; padding: 0 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+        }
+        .nav-btn {
+            font-size: 13px; font-weight: 700; color: #86868b;
+            padding: 8px 16px; border-radius: 20px; transition: 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+        .nav-btn.active { color: #000; background: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: scale(1.1); }
+
+        /* 3. 核心：空间堆叠容器 */
+        .stack-scroller {
+            position: relative; z-index: 10; height: 100vh;
+            overflow-y: scroll; scroll-snap-type: y mandatory;
+            perspective: 2000px; /* 空间透视深度 */
+        }
+        .stack-scroller::-webkit-scrollbar { display: none; }
+
+        .story-section {
+            height: 100vh; display: flex; align-items: center; justify-content: center;
+            scroll-snap-align: center; padding: 25px; perspective: 1000px;
+        }
+
+        .spatial-card {
+            background: rgba(255,255,255,0.85); backdrop-filter: blur(30px) saturate(150%);
+            border: 1px solid rgba(255,255,255,0.5); border-radius: 42px;
+            padding: 40px 32px; width: 100%; max-width: 350px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.05);
+            transform-style: preserve-3d;
+            transition: transform 0.1s linear, opacity 0.5s; /* JS实时控制位移 */
+        }
+
+        .m-tag { color: var(--accent); font-size: 11px; font-weight: 800; margin-bottom: 12px; display: block; letter-spacing: 1px; }
+        .m-title { font-size: 30px; font-weight: 800; margin-bottom: 20px; letter-spacing: -1px; line-height: 1.1; }
+        .m-body { font-size: 17px; color: #424245; line-height: 1.7; }
+
+    </style>
+</head>
+<body>
+
+    <div class="ambient-bg">
+        <div class="blob"></div>
+    </div>
+
+    <nav class="nav-header">
+        <div class="nav-btn active" onclick="jump(0)">2026</div>
+        <div class="nav-btn" onclick="jump(1)">12.30</div>
+        <div class="nav-btn" onclick="jump(2)">12.16</div>
+    </nav>
+
+    <div class="stack-scroller" id="main-scroller">
+        <section class="story-section">
+            <div class="spatial-card">
+                <span class="m-tag">NEW YEAR</span>
+                <h2 class="m-title">跨年</h2>
+                <p class="m-body">今天也是来到了新的一年 2026年</p>
+            </div>
+        </section>
+
+        <section class="story-section">
+            <div class="spatial-card">
+                <span class="m-tag">EVENT</span>
+                <h2 class="m-title">元旦晚会</h2>
+                <p class="m-body">当时我们下午四点就放学了 开始布置教是啥道 晚上应该是六点多吧 我们开始举办了喊楼活动 搞完之后我们就回教室了 当时老热闹了 副校长还来我们班里了 班主任可是王主任是副校长一手提拔上来的 晚上九点就放了可惜没照片</p>
+            </div>
+        </section>
+
+        <section class="story-section">
+            <div class="spatial-card">
+                <span class="m-tag">ORIGIN</span>
+                <h2 class="m-title">博客主页首次创立</h2>
+                <p class="m-body">今天我创立了这个博客主题网页 将在以后去更新内容</p>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const scroller = document.getElementById('main-scroller');
+        const cards = document.querySelectorAll('.spatial-card');
+        const btns = document.querySelectorAll('.nav-btn');
+        const winH = window.innerHeight;
+
+        // 1. 空间交互逻辑：Z轴位移与倾斜
+        scroller.addEventListener('scroll', () => {
+            const scrolled = scroller.scrollTop;
+            
+            cards.forEach((card, i) => {
+                const cardOffset = i * winH;
+                const progress = (scrolled - cardOffset) / winH;
+
+                if (progress > 0) { 
+                    // 向上滑出：卡片向后方(Z轴)退去，并向上漂移
+                    const z = -progress * 500;
+                    const y = -progress * 200;
+                    const rotate = progress * -15;
+                    card.style.transform = `translate3d(0, ${y}px, ${z}px) rotateX(${rotate}deg)`;
+                    card.style.opacity = 1 - progress;
+                } else {
+                    // 进入视口：从前方缩放回来
+                    const scale = 1 + progress * 0.2;
+                    card.style.transform = `scale(${scale})`;
+                    card.style.opacity = 1 + progress;
+                }
+            });
+
+            // 实时同步顶栏状态
+            const activeIdx = Math.round(scrolled / winH);
+            btns.forEach((btn, i) => btn.classList.toggle('active', i === activeIdx));
+        });
+
+        // 2. 点击导航跳转逻辑
+        function jump(index) {
+            scroller.scrollTo({
+                top: index * winH,
+                behavior: 'smooth'
+            });
+        }
+
+        // 3. 增加 iOS 触觉感
+        cards.forEach(card => {
+            card.addEventListener('touchstart', () => {
+                card.style.transition = '0.2s';
+                card.style.transform += ' scale(0.96)';
+            });
+            card.addEventListener('touchend', () => {
+                card.style.transition = 'transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)';
+            });
+        });
+    </script>
+</body>
+</html>

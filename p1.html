@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>CJH | 沉浸式空间</title>
+    <style>
+        :root {
+            --glass: rgba(255, 255, 255, 0.6);
+            --accent: #0071e3;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; scroll-behavior: smooth; }
+        body { background: #fff; color: #1d1d1f; font-family: "SF Pro SC", sans-serif; overflow-x: hidden; }
+
+        /* 动态背景：流体渐变 */
+        .ambient-bg {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: -1;
+            background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
+        }
+        .blob {
+            position: absolute; width: 600px; height: 600px; border-radius: 50%;
+            background: radial-gradient(circle, rgba(0,113,227,0.08) 0%, transparent 70%);
+            filter: blur(50px); animation: move 20s infinite alternate;
+        }
+        @keyframes move { from { transform: translate(-10%, -10%); } to { transform: translate(30%, 20%); } }
+
+        /* 创新侧边：动态时间刻度 */
+        .time-scroller {
+            position: fixed; right: 40px; top: 50%; transform: translateY(-50%);
+            display: flex; flex-direction: column; align-items: flex-end; z-index: 100;
+        }
+        .time-anchor {
+            font-size: 12px; font-weight: 800; color: #d2d2d7; margin: 15px 0;
+            cursor: pointer; transition: 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+            text-decoration: none; position: relative;
+        }
+        .time-anchor::after {
+            content: ''; position: absolute; right: -20px; top: 50%; width: 5px; height: 5px;
+            background: #d2d2d7; border-radius: 50%;
+        }
+        .time-anchor:hover, .time-anchor.active { color: var(--accent); transform: scale(1.4) translateX(-10px); }
+        .time-anchor.active::after { background: var(--accent); transform: scale(2); }
+
+        /* 视差布局容器 */
+        .stage { max-width: 1200px; margin: 0 auto; padding: 150px 20px; position: relative; }
+
+        .parallax-card {
+            background: var(--glass); backdrop-filter: blur(40px) saturate(150%);
+            border: 1px solid rgba(255,255,255,0.8); border-radius: 40px;
+            padding: 60px; box-shadow: 0 40px 100px rgba(0,0,0,0.03);
+            margin-bottom: 200px; transition: 0.8s cubic-bezier(0.15, 1, 0.3, 1);
+            width: 70%;
+        }
+
+        /* 错位排列：打乱顺序感 */
+        .parallax-card:nth-child(even) { margin-left: auto; transform: rotate(1deg); }
+        .parallax-card:nth-child(odd) { margin-right: auto; transform: rotate(-1deg); }
+
+        .parallax-card:hover { transform: scale(1.02) rotate(0deg); background: #fff; box-shadow: 0 60px 120px rgba(0,0,0,0.06); }
+
+        .date-str { font-size: 14px; font-weight: 800; color: var(--accent); margin-bottom: 20px; display: block; }
+        .title { font-size: 42px; font-weight: 700; margin-bottom: 30px; letter-spacing: -1.5px; }
+        .content { font-size: 20px; line-height: 1.8; color: #424245; }
+
+        /* 底部填充装饰 */
+        .footer-decor { position: fixed; bottom: 40px; left: 40px; font-size: 12px; color: #c7c7cc; writing-mode: vertical-rl; }
+    </style>
+</head>
+<body>
+    <div class="ambient-bg">
+        <div class="blob"></div>
+        <div class="blob" style="right:0; bottom:0; background: radial-gradient(circle, rgba(255,157,108,0.08) 0%, transparent 70%);"></div>
+    </div>
+
+    <div class="footer-decor">CREATED BY CJH · LOG 2026</div>
+
+    <nav class="time-scroller">
+        <a href="#c1" class="time-anchor active">2026.01.01</a>
+        <a href="#c2" class="time-anchor">2025.12.30</a>
+        <a href="#c3" class="time-anchor">2025.12.16</a>
+    </nav>
+
+    <main class="stage">
+        <div id="c1" class="parallax-card">
+            <span class="date-str">JAN 01 · 2026</span>
+            <h2 class="title">跨年</h2>
+            <p class="content">今天也是来到了新的一年 2026年</p>
+        </div>
+
+        <div id="c2" class="parallax-card">
+            <span class="date-str">DEC 30 · 2025</span>
+            <h2 class="title">元旦晚会</h2>
+            <p class="content">当时我们下午四点就放学了 开始布置教是啥的 晚上应该是六点多吧 我们开始举办了喊楼活动 搞完之后我们就回教室了 当时老热闹了 副校长还来我们班里了 班主任可是王主任是副校长一手提拔上来的 晚上九点就放了可惜没照片</p>
+        </div>
+
+        <div id="c3" class="parallax-card">
+            <span class="date-str">DEC 16 · 2025</span>
+            <h2 class="title">博客主页首次创立</h2>
+            <p class="content">今天我创立了这个博客主题网页 将在以后去更新内容</p>
+        </div>
+    </main>
+
+    <script>
+        // 简单的视差监听和导航高亮
+        window.addEventListener('scroll', () => {
+            const sections = document.querySelectorAll('.parallax-card');
+            const navs = document.querySelectorAll('.time-anchor');
+            sections.forEach((sec, i) => {
+                const top = sec.getBoundingClientRect().top;
+                if(top < window.innerHeight / 2 && top > -window.innerHeight / 2) {
+                    navs.forEach(n => n.classList.remove('active'));
+                    navs[i].classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
