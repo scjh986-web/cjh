@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta id="dynamic-viewport" name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>终端身份验证</title>
+    <style>
+        /* 核心布局样式 */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+        body, html { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, "SF Pro Display", "PingFang SC", sans-serif; background: #000; color: #fff; }
+        
+        #app { display: none; width: 100%; height: 100%; }
+
+        #verify-container {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: radial-gradient(circle at center, #111 0%, #000 100%);
+            z-index: 10000;
+        }
+        .verify-box {
+            width: 85%; max-width: 400px; padding: 40px 30px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 30px; backdrop-filter: blur(20px);
+            text-align: center;
+        }
+        .v-icon { width: 60px; height: 60px; margin-bottom: 20px; opacity: 0.8; }
+        .v-title { font-size: 24px; font-weight: 600; margin-bottom: 10px; letter-spacing: 2px; }
+        .v-tips { font-size: 13px; color: rgba(255,255,255,0.4); margin-bottom: 30px; }
+        
+        .v-input {
+            width: 100%; padding: 16px 20px; background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 15px;
+            color: #fff; font-size: 15px; outline: none; margin-bottom: 20px;
+            transition: all 0.3s; text-align: center;
+        }
+        .v-input:focus { border-color: #fff; background: rgba(255,255,255,0.1); }
+        
+        .v-btn {
+            width: 100%; padding: 16px; border: none; border-radius: 100px;
+            background: #fff; color: #000; font-weight: 600; font-size: 15px;
+            cursor: pointer; letter-spacing: 2px; transition: 0.3s;
+        }
+        .v-btn:active { transform: scale(0.96); opacity: 0.8; }
+
+        /* 错误提示区域优化：支持多行展示 */
+        #error-msg { 
+            color: #ff4d4d; 
+            font-size: 12px; 
+            margin-top: 15px; 
+            opacity: 0.8; 
+            white-space: pre-wrap; 
+            line-height: 1.5; 
+        }
+
+        .loading-screen { height: 100%; display: flex; justify-content: center; align-items: center; background: #000; }
+        .load-dot { width: 4px; height: 4px; background: #fff; border-radius: 50%; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 0.2; transform: scale(1); } 50% { opacity: 1; transform: scale(1.5); } }
+        .btn-entry {
+            padding: 18px 50px; border-radius: 100px; font-size: 15px; font-weight: 600;
+            cursor: pointer; text-decoration: none; letter-spacing: 2px;
+            background: #fff; color: #000; opacity: 0; transform: translateY(30px);
+            box-shadow: 0 20px 50px rgba(255,255,255,0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="verify-container">
+        <div class="verify-box">
+            <svg class="v-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <div class="v-title">访问受限</div>
+            <div class="v-tips">请输入有效的终端授权卡密</div>
+            <input type="text" id="kami-input" class="v-input" placeholder="输入卡密" spellcheck="false">
+            <button class="v-btn" id="submit-btn">立即验证</button>
+            <div id="error-msg"></div>
+        </div>
+    </div>
+
+    <div id="app">
+        <div class="loading-screen">
+            <div class="load-dot"></div>
+        </div>
+    </div>
+
+    <script>
+        /* ============================================================
+           [第一部分] 核心加密算法 (SHA, MD5, RC4, Base64)
+           ============================================================ */
+        function e370aabebb318960726ce21b6baa28a3d(input) { function rotate_left(n, s) { return (n << s) | (n >>> (32 - s)); } function cvt_hex(val) { var str = ""; var i; var v; for (i = 7; i >= 0; i--) { v = (val >>> (i * 4)) & 0x0f; str += v.toString(16); } return str; } var blockstart; var i, j; var W = new Array(80); var H0 = 0x67452301; var H1 = 0xEFCDAB89; var H2 = 0x98BADCFE; var H3 = 0x10325476; var H4 = 0xC3D2E1F0; var A, B, C, D, E; var temp; var utf8Encode = new TextEncoder(); var msg = utf8Encode.encode(input); var msg_len = msg.length; var total_len = msg_len + 9; while (total_len % 64 !== 0) total_len++; var padded_msg = new Uint8Array(total_len); for (i = 0; i < msg_len; i++) { padded_msg[i] = msg[i]; } padded_msg[msg_len] = 0x80; for (i = msg_len + 1; i < total_len - 8; i++) { padded_msg[i] = 0x00; } var bit_len = msg_len * 8; for (i = total_len - 1; i >= total_len - 8; i--) { padded_msg[i] = bit_len & 0xff; bit_len >>>= 8; } for (blockstart = 0; blockstart < total_len; blockstart += 64) { for (i = 0; i < 16; i++) { W[i] = padded_msg[blockstart + i * 4] << 24 | padded_msg[blockstart + i * 4 + 1] << 16 | padded_msg[blockstart + i * 4 + 2] << 8 | padded_msg[blockstart + i * 4 + 3]; } for (i = 16; i < 80; i++) { W[i] = rotate_left(W[i - 3] ^ W[i - 8] ^ W[i - 14] ^ W[i - 16], 1); } A = H0; B = H1; C = H2; D = H3; E = H4; for (i = 0; i < 80; i++) { var f, k; if (i < 20) { f = (B & C) | ((~B) & D); k = 0x5A827999; } else if (i < 40) { f = B ^ C ^ D; k = 0x6ED9EBA1; } else if (i < 60) { f = (B & C) | (B & D) | (C & D); k = 0x8F1BBCDC; } else { f = B ^ C ^ D; k = 0xCA62C1D6; } temp = (rotate_left(A, 5) + f + E + k + W[i]) & 0xffffffff; E = D; D = C; C = rotate_left(B, 30); B = A; A = temp; } H0 = (H0 + A) & 0xffffffff; H1 = (H1 + B) & 0xffffffff; H2 = (H2 + C) & 0xffffffff; H3 = (H3 + D) & 0xffffffff; H4 = (H4 + E) & 0xffffffff; } return cvt_hex(H0) + cvt_hex(H1) + cvt_hex(H2) + cvt_hex(H3) + cvt_hex(H4); }
+        function q1acfe311f63dd6a613d6e3edd9dcc3ad(input) { var K = [0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2]; function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); } var utf8Encode = new TextEncoder(); var msg = utf8Encode.encode(input); var msg_len = msg.length; var total_len = msg_len + 9; while (total_len % 64 !== 0) total_len++; var padded_msg = new Uint8Array(total_len); for (var i = 0; i < msg_len; i++) { padded_msg[i] = msg[i]; } padded_msg[msg_len] = 0x80; for (i = msg_len + 1; i < total_len - 8; i++) { padded_msg[i] = 0x00; } var bit_len = msg_len * 8; for (i = total_len - 1; i >= total_len - 8; i--) { padded_msg[i] = bit_len & 0xff; bit_len >>>= 8; } var h0 = 0x6a09e667; var h1 = 0xbb67ae85; var h2 = 0x3c6ef372; var h3 = 0xa54ff53a; var h4 = 0x510e527f; var h5 = 0x9b05688c; var h6 = 0x1f83d9ab; var h7 = 0x5be0cd19; for (var blockstart = 0; blockstart < total_len; blockstart += 64) { var w = new Array(64); for (i = 0; i < 16; i++) { w[i] = padded_msg[blockstart + i * 4] << 24 | padded_msg[blockstart + i * 4 + 1] << 16 | padded_msg[blockstart + i * 4 + 2] << 8 | padded_msg[blockstart + i * 4 + 3]; } for (i = 16; i < 64; i++) { var s0 = rightRotate(w[i - 15], 7) ^ rightRotate(w[i - 15], 18) ^ (w[i - 15] >>> 3); var s1 = rightRotate(w[i - 2], 17) ^ rightRotate(w[i - 2], 19) ^ (w[i - 2] >>> 10); w[i] = (w[i - 16] + s0 + w[i - 7] + s1) & 0xffffffff; } var a = h0; var b = h1; var c = h2; var d = h3; var e = h4; var f = h5; var g = h6; var h = h7; for (i = 0; i < 64; i++) { var S1 = rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25); var ch = (e & f) ^ ((~e) & g); var temp1 = (h + S1 + ch + K[i] + w[i]) & 0xffffffff; var S0 = rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22); var maj = (a & b) ^ (a & c) ^ (b & c); var temp2 = (S0 + maj) & 0xffffffff; h = g; g = f; f = e; e = (d + temp1) & 0xffffffff; d = c; c = b; b = a; a = (temp1 + temp2) & 0xffffffff; } h0 = (h0 + a) & 0xffffffff; h1 = (h1 + b) & 0xffffffff; h2 = (h2 + c) & 0xffffffff; h3 = (h3 + d) & 0xffffffff; h4 = (h4 + e) & 0xffffffff; h5 = (h5 + f) & 0xffffffff; h6 = (h6 + g) & 0xffffffff; h7 = (h7 + h) & 0xffffffff; } function toHex(val) { var str = ""; for (var i = 7; i >= 0; i--) { var v = (val >>> (i * 4)) & 0x0f; str += v.toString(16); } return str; } return toHex(h0) + toHex(h1) + toHex(h2) + toHex(h3) + toHex(h4) + toHex(h5) + toHex(h6) + toHex(h7); }
+        function e6d44b1acf4c4ec4e28472b8f80c39bc0(message) { message = unescape(encodeURIComponent(message)); function rotateLeft(lValue, iShiftBits) { return (lValue << iShiftBits) | (lValue >>> (32 - iShiftBits)); } function addUnsigned(lX, lY) { var lX4, lY4, lX8, lY8, lResult; lX8 = (lX & 0x80000000); lY8 = (lY & 0x80000000); lX4 = (lX & 0x40000000); lY4 = (lY & 0x40000000); lResult = (lX & 0x3FFFFFFF) + (lY & 0x3FFFFFFF); if (lX4 & lY4) { return (lResult ^ 0x80000000 ^ lX8 ^ lY8); } if (lX4 | lY4) { if (lResult & 0x40000000) { return (lResult ^ 0xC0000000 ^ lX8 ^ lY8); } else { return (lResult ^ 0x40000000 ^ lX8 ^ lY8); } } else { return (lResult ^ lX8 ^ lY8); } } function F(x, y, z) { return (x & y) | ((~x) & z); } function G(x, y, z) { return (x & z) | (y & (~z)); } function H(x, y, z) { return (x ^ y ^ z); } function I(x, y, z) { return (y ^ (x | (~z))); } function FF(a, b, c, d, x, s, ac) { a = addUnsigned(a, addUnsigned(addUnsigned(F(b, c, d), x), ac)); return addUnsigned(rotateLeft(a, s), b); } function GG(a, b, c, d, x, s, ac) { a = addUnsigned(a, addUnsigned(addUnsigned(G(b, c, d), x), ac)); return addUnsigned(rotateLeft(a, s), b); } function HH(a, b, c, d, x, s, ac) { a = addUnsigned(a, addUnsigned(addUnsigned(H(b, c, d), x), ac)); return addUnsigned(rotateLeft(a, s), b); } function II(a, b, c, d, x, s, ac) { a = addUnsigned(a, addUnsigned(addUnsigned(I(b, c, d), x), ac)); return addUnsigned(rotateLeft(a, s), b); } function convertToWordArray(message) { var lWordCount, lMessageLength = message.length, lNumberOfWords_temp1 = lMessageLength + 8, lNumberOfWords_temp2 = (lNumberOfWords_temp1 - (lNumberOfWords_temp1 % 64)) / 64, lNumberOfWords = (lNumberOfWords_temp2 + 1) * 16, lWordArray = new Array(lNumberOfWords); for (lWordCount = 0; lWordCount < lNumberOfWords; lWordCount++) { lWordArray[lWordCount] = 0; } for (lWordCount = 0; lWordCount < lMessageLength; lWordCount++) { lWordArray[lWordCount >> 2] |= message.charCodeAt(lWordCount) << ((lWordCount % 4) * 8); } lWordArray[lWordCount >> 2] |= 0x80 << ((lWordCount % 4) * 8); lWordArray[lNumberOfWords - 2] = lMessageLength << 3; lWordArray[lNumberOfWords - 1] = lMessageLength >>> 29; return lWordArray; } function wordToHex(lValue) { var wordToHexValue = '', wordToHexValue_temp = '', lByte, lCount; for (lCount = 0; lCount <= 3; lCount++) { lByte = (lValue >>> (lCount * 8)) & 255; wordToHexValue_temp = '0' + lByte.toString(16); wordToHexValue += wordToHexValue_temp.substr(wordToHexValue_temp.length - 2, 2); } return wordToHexValue; } var x = [], k, AA, BB, CC, DD, a, b, c, d, S11 = 7, S12 = 12, S13 = 17, S14 = 22, S21 = 5, S22 = 9, S23 = 14, S24 = 20, S31 = 4, S32 = 11, S33 = 16, S34 = 23, S41 = 6, S42 = 10, S43 = 15, S44 = 21; x = convertToWordArray(message); a = 0x67452301; b = 0xEFCDAB89; c = 0x98BADCFE; d = 0x10325476; for (k = 0; k < x.length; k += 16) { AA = a; BB = b; CC = c; DD = d; a = FF(a, b, c, d, x[k + 0], S11, 0xD76AA478); d = FF(d, a, b, c, x[k + 1], S12, 0xE8C7B756); c = FF(c, d, a, b, x[k + 2], S13, 0x242070DB); b = FF(b, c, d, a, x[k + 3], S14, 0xC1BDCEEE); a = FF(a, b, c, d, x[k + 4], S11, 0xF57C0FAF); d = FF(d, a, b, c, x[k + 5], S12, 0x4787C62A); c = FF(c, d, a, b, x[k + 6], S13, 0xA8304613); b = FF(b, c, d, a, x[k + 7], S14, 0xFD469501); a = FF(a, b, c, d, x[k + 8], S11, 0x698098D8); d = FF(d, a, b, c, x[k + 9], S12, 0x8B44F7AF); c = FF(c, d, a, b, x[k + 10], S13, 0xFFFF5BB1); b = FF(b, c, d, a, x[k + 11], S14, 0x895CD7BE); a = FF(a, b, c, d, x[k + 12], S11, 0x6B901122); d = FF(d, a, b, c, x[k + 13], S12, 0xFD987193); c = FF(c, d, a, b, x[k + 14], S13, 0xA679438E); b = FF(b, c, d, a, x[k + 15], S14, 0x49B40821); a = GG(a, b, c, d, x[k + 1], S21, 0xF61E2562); d = GG(d, a, b, c, x[k + 6], S22, 0xC040B340); c = GG(c, d, a, b, x[k + 11], S23, 0x265E5A51); b = GG(b, c, d, a, x[k + 0], S24, 0xE9B6C7AA); a = GG(a, b, c, d, x[k + 5], S21, 0xD62F105D); d = GG(d, a, b, c, x[k + 10], S22, 0x2441453); c = GG(c, d, a, b, x[k + 15], S23, 0xD8A1E681); b = GG(b, c, d, a, x[k + 4], S24, 0xE7D3FBC8); a = GG(a, b, c, d, x[k + 9], S21, 0x21E1CDE6); d = GG(d, a, b, c, x[k + 14], S22, 0xC33707D6); c = GG(c, d, a, b, x[k + 3], S23, 0xF4D50D87); b = GG(b, c, d, a, x[k + 8], S24, 0x455A14ED); a = GG(a, b, c, d, x[k + 13], S21, 0xA9E3E905); d = GG(d, a, b, c, x[k + 2], S22, 0xFCEFA3F8); c = GG(c, d, a, b, x[k + 7], S23, 0x676F02D9); b = GG(b, c, d, a, x[k + 12], S24, 0x8D2A4C8A); a = HH(a, b, c, d, x[k + 5], S31, 0xFFFA3942); d = HH(d, a, b, c, x[k + 8], S32, 0x8771F681); c = HH(c, d, a, b, x[k + 11], S33, 0x6D9D6122); b = HH(b, c, d, a, x[k + 14], S34, 0xFDE5380C); a = HH(a, b, c, d, x[k + 1], S31, 0xA4BEEA44); d = HH(d, a, b, c, x[k + 4], S32, 0x4BDECFA9); c = HH(c, d, a, b, x[k + 7], S33, 0xF6BB4B60); b = HH(b, c, d, a, x[k + 10], S34, 0xBEBFBC70); a = HH(a, b, c, d, x[k + 13], S31, 0x289B7EC6); d = HH(d, a, b, c, x[k + 0], S32, 0xEAA127FA); c = HH(c, d, a, b, x[k + 3], S33, 0xD4EF3085); b = HH(b, c, d, a, x[k + 6], S34, 0x4881D05); a = HH(a, b, c, d, x[k + 9], S31, 0xD9D4D039); d = HH(d, a, b, c, x[k + 12], S32, 0xE6DB99E5); c = HH(c, d, a, b, x[k + 15], S33, 0x1FA27CF8); b = HH(b, c, d, a, x[k + 2], S34, 0xC4AC5665); a = II(a, b, c, d, x[k + 0], S41, 0xF4292244); d = II(d, a, b, c, x[k + 7], S42, 0x432AFF97); c = II(c, d, a, b, x[k + 14], S43, 0xAB9423A7); b = II(b, c, d, a, x[k + 5], S44, 0xFC93A039); a = II(a, b, c, d, x[k + 12], S41, 0x655B59C3); d = II(d, a, b, c, x[k + 3], S42, 0x8F0CCC92); c = II(c, d, a, b, x[k + 10], S43, 0xFFEFF47D); b = II(b, c, d, a, x[k + 1], S44, 0x85845DD1); a = II(a, b, c, d, x[k + 8], S41, 0x6FA87E4F); d = II(d, a, b, c, x[k + 15], S42, 0xFE2CE6E0); c = II(c, d, a, b, x[k + 6], S43, 0xA3014314); b = II(b, c, d, a, x[k + 13], S44, 0x4E0811A1); a = II(a, b, c, d, x[k + 4], S41, 0xF7537E82); d = II(d, a, b, c, x[k + 11], S42, 0xBD3AF235); c = II(c, d, a, b, x[k + 2], S43, 0x2AD7D2BB); b = II(b, c, d, a, x[k + 9], S44, 0xEB86D391); a = addUnsigned(a, AA); b = addUnsigned(b, BB); c = addUnsigned(c, CC); d = addUnsigned(d, DD); } var temp = wordToHex(a) + wordToHex(b) + wordToHex(c) + wordToHex(d); return temp.toLowerCase(); }
+        function u8bb0630a4c26bf185d3424bb46b1c598(text, key) { text = utf8Encode(text); key = utf8Encode(key); let s = new Array(256); let j = 0; let x; for (let i = 0; i < 256; i++) { s[i] = i; } for (let i = 0; i < 256; i++) { j = (j + s[i] + key.charCodeAt(i % key.length)) % 256; x = s[i]; s[i] = s[j]; s[j] = x; } let i = 0; j = 0; let ciphertext = ''; for (let n = 0; n < text.length; n++) { i = (i + 1) % 256; j = (j + s[i]) % 256; x = s[i]; s[i] = s[j]; s[j] = x; ciphertext += String.fromCharCode(text.charCodeAt(n) ^ s[(s[i] + s[j]) % 256]); } return ciphertext; }
+        function n2314f22e34ec192973878a74e7b030c4(ciphertext, key) { ciphertext = ciphertext; key = utf8Encode(key); let s = new Array(256); let j = 0; let x; for (let i = 0; i < 256; i++) { s[i] = i; } for (let i = 0; i < 256; i++) { j = (j + s[i] + key.charCodeAt(i % key.length)) % 256; x = s[i]; s[i] = s[j]; s[j] = x; } let i = 0; j = 0; let plaintext = ''; for (let n = 0; n < ciphertext.length; n++) { i = (i + 1) % 256; j = (j + s[i]) % 256; x = s[i]; s[i] = s[j]; s[j] = x; plaintext += String.fromCharCode(ciphertext.charCodeAt(n) ^ s[(s[i] + s[j]) % 256]); } return utf8Decode(plaintext); }
+        function utf8Encode(str) { return unescape(encodeURIComponent(str)); }
+        function utf8Decode(str) { return decodeURIComponent(escape(str)); }
+        function h74adde02a90675e5b9312e3aeaad8569(hex) { let bytes = []; for (let i = 0; i < hex.length - 1; i += 2) { bytes.push(parseInt(hex.substr(i, 2), 16)); } return String.fromCharCode.apply(String, bytes); }
+        function q606d81ed2705ad4a881d3f04bfd7a99e(bin) { let hex = ''; for (let i = 0; i < bin.length; i++) { hex += ('0' + bin.charCodeAt(i).toString(16)).slice(-2); } return hex; }
+        const customBase64Key = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        function i1d763717bc533cf7d97c046ce6f60bc2(input) { const utf8String = unescape(encodeURIComponent(input)); const base64 = btoa(utf8String); return base64.replace(/[A-Za-z0-9+/]/g, char => customBase64Key[customBase64Key.indexOf(char)]); }
+        function qc8b5ab052f8fbb7f1895b75a3c341cec(input) { const base64 = input.replace(/[A-Za-z0-9+/]/g, char => customBase64Key[customBase64Key.indexOf(char)]); const utf8String = atob(base64); return decodeURIComponent(escape(utf8String)); }
+        function s9ace7d13194d396c7ce7ed07208a0b58(input, base64Chars) { const utf8Bytes = new TextEncoder().encode(input); let output = ""; let padding = ""; let i = 0; const len = utf8Bytes.length; while (i < len) { let b1 = utf8Bytes[i]; let b2 = utf8Bytes[i + 1]; let b3 = utf8Bytes[i + 2]; if (b2 === undefined) { b2 = 0; padding += "="; } if (b3 === undefined) { b3 = 0; padding += "="; } let combined = (b1 << 16) + (b2 << 8) + b3; output += base64Chars.charAt((combined >> 18) & 0x3F); output += base64Chars.charAt((combined >> 12) & 0x3F); output += base64Chars.charAt((combined >> 6) & 0x3F); output += base64Chars.charAt(combined & 0x3F); i += 3; } return output.substring(0, output.length - padding.length) + padding; }
+        function odcc71afea8bcb470d5d6fc543d2d85db(input, base64Chars) { const base64DecodeChars = {}; for (let i = 0; i < base64Chars.length; i++) { base64DecodeChars[base64Chars.charAt(i)] = i; } let padding = 0; if (input.endsWith("=")) padding++; if (input.endsWith("==")) padding++; let output = []; let i = 0; const len = input.length; while (i < len - padding) { let c1 = base64DecodeChars[input.charAt(i)]; let c2 = base64DecodeChars[input.charAt(i + 1)]; let c3 = base64DecodeChars[input.charAt(i + 2)]; let c4 = base64DecodeChars[input.charAt(i + 3)]; if (c3 === undefined) c3 = 0; if (c4 === undefined) c4 = 0; let combined = (c1 << 18) + (c2 << 12) + (c3 << 6) + c4; output.push((combined >> 16) & 0xFF); output.push((combined >> 8) & 0xFF); output.push(combined & 0xFF); i += 4; } if (padding === 1) { output = output.slice(0, -1); } else if (padding === 2) { output = output.slice(0, -2); } return new TextDecoder().decode(new Uint8Array(output)); }
+
+        /* ============================================================
+           [第二部分] 核心业务函数
+           ============================================================ */
+        function geyKamiHc() { var kami = localStorage.getItem('weiyanKami'); return kami == null ? "" : kami }
+        function getDeviceId() { var deviceId = localStorage.getItem('deviceId'); if (!deviceId) { deviceId = generateDeviceId(); localStorage.setItem('deviceId', deviceId); } return deviceId; }
+        function generateDeviceId() { var chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'; var deviceId = ''; for (var i = 0; i < 16; i++) { deviceId += chars.charAt(Math.floor(Math.random() * chars.length)); } return deviceId; }
+        function getRandomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+        function wyDateTime(timestamp) { const date = new Date(timestamp * 1000); return date.toLocaleString(); }
+        function HttpPost(url, data, callback) { var xhr = new XMLHttpRequest(); xhr.open("POST", url, true); xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded"); xhr.onreadystatechange = function () { if (xhr.readyState === 4) { if (xhr.status === 200) { callback(null, xhr.responseText); } else { callback(xhr.status, null); } } }; xhr.send(data); }
+
+        const kf7dd0ddef7aaf9bed991c6c38b026c7a = "https://wy.llua.cn/v2/"
+
+        // 核心登录执行逻辑 (严格还原并增强)
+        function startLogin() {
+            const inputField = document.getElementById('kami-input');
+            const nbd54ecb9409af387b27c88fdc928b73f = inputField.value;
+            const errorDiv = document.getElementById('error-msg');
+            
+            if (!nbd54ecb9409af387b27c88fdc928b73f) {
+                errorDiv.innerText = "请输入卡密";
+                return;
+            }
+
+            errorDiv.innerText = "正在安全连接...";
+            const hcab7550bc0b1ea3cab28bf6a2f9bb207 = getDeviceId();
+            const m0971c2f2c3b8f8f87f1256a874cc5106 = Math.floor(new Date().getTime() / 1000);
+            const hba745a7062e2e9cac07a35ecd140c03b = getRandomInt(10000, 99999);
+            const g2566214e26bcf483dc6b2720cced88de = e6d44b1acf4c4ec4e28472b8f80c39bc0("kami=" + nbd54ecb9409af387b27c88fdc928b73f + "&markcode=" + hcab7550bc0b1ea3cab28bf6a2f9bb207 + "&t=" + m0971c2f2c3b8f8f87f1256a874cc5106 + "&y606f325cfbb4a903f47dbebd3c8985b")
+            
+            HttpPost(kf7dd0ddef7aaf9bed991c6c38b026c7a + "7d322eb69fd8427889647d18cbb57fd1", q606d81ed2705ad4a881d3f04bfd7a99e(q606d81ed2705ad4a881d3f04bfd7a99e(u8bb0630a4c26bf185d3424bb46b1c598(s9ace7d13194d396c7ce7ed07208a0b58(q606d81ed2705ad4a881d3f04bfd7a99e(u8bb0630a4c26bf185d3424bb46b1c598(q606d81ed2705ad4a881d3f04bfd7a99e(u8bb0630a4c26bf185d3424bb46b1c598(i1d763717bc533cf7d97c046ce6f60bc2(i1d763717bc533cf7d97c046ce6f60bc2("id=c6bd6786Awc&kami=" + nbd54ecb9409af387b27c88fdc928b73f + "&markcode=" + hcab7550bc0b1ea3cab28bf6a2f9bb207 + "&t=" + m0971c2f2c3b8f8f87f1256a874cc5106 + "&sign=" + g2566214e26bcf483dc6b2720cced88de + "&value=" + hba745a7062e2e9cac07a35ecd140c03b + "")),"e29e581a9b14d0412f53b774aaf0c8a9eb014")),"qf3bbfceaa75c8c4abe51bdcba34664a96f")),"FyPvJp2UsBQZbRMXNu34EW75dVYHOzTiAaktef0qL6jwhnGKg8SrxoC1m+lI/cD9"),"k68504d3519026f9bda"))), function(code, e93a66a6524421d81ec327dc893e768df) {
+                if (code) {
+                    errorDiv.innerText = "网络请求失败，错误码：" + code;
+                } else {
+                    try {
+                        const resStr = n2314f22e34ec192973878a74e7b030c4(h74adde02a90675e5b9312e3aeaad8569(odcc71afea8bcb470d5d6fc543d2d85db(qc8b5ab052f8fbb7f1895b75a3c341cec(n2314f22e34ec192973878a74e7b030c4(h74adde02a90675e5b9312e3aeaad8569(e93a66a6524421d81ec327dc893e768df), "z090f5e281c37528913332e5ee888bee3d65108")), "NxE1wAvgcKGdiIMQfe7mayuq82SjnHWRTz3lCBbr5DLZ4YO9Ft/J0PU6VpXoh+ks")), "o7aec74f68178f53ea394a120da597360db")
+                        const ac53ed4b8dfd3d23bdbae1ed85803aafb = JSON.parse(resStr);
+                        
+                        // 判定是否成功进入主程序
+                        if (ac53ed4b8dfd3d23bdbae1ed85803aafb.lbc95ffbe371f6f3dceb46b1ba8910fe8 == 79431 && ac53ed4b8dfd3d23bdbae1ed85803aafb.qdf1a9f0a3add0b9bee44b03ac1c77328.we77013052544c863b403566591092854 == "044c4f09be1376acd61474b906d7921f") {
+                            // 校验服务器时间
+                            if (Math.abs(ac53ed4b8dfd3d23bdbae1ed85803aafb.o3dc9e50d003ea6d197c080d32c9af9dd - m0971c2f2c3b8f8f87f1256a874cc5106) > 30) {
+                                errorDiv.innerText = "设备时间偏差过大，请同步网络时间";
+                            } else {
+                                // 验证成功：存储并进入
+                                localStorage.setItem('weiyanKami', nbd54ecb9409af387b27c88fdc928b73f);
+                                document.getElementById('verify-container').style.display = 'none';
+                                document.getElementById('app').style.display = 'block';
+                                initMainApp();
+                            }
+                        } else {
+                            // 验证未通过：提取并展示详细原因
+                            let finalTip = "";
+                            const resObj = ac53ed4b8dfd3d23bdbae1ed85803aafb.qdf1a9f0a3add0b9bee44b03ac1c77328;
+
+                            if (typeof resObj === 'string') {
+                                finalTip = resObj;
+                            } else if (typeof resObj === 'object' && resObj !== null) {
+                                // 提取系统消息、剩余次数、解封时间
+                                let msg = resObj.msg || resObj.info || "身份校验失败";
+                                let surplus = resObj.surplus !== undefined ? `\n(剩余次数: ${resObj.surplus})` : "";
+                                let unlock = "";
+                                if (resObj.time) {
+                                    const tStr = isNaN(resObj.time) ? resObj.time : wyDateTime(resObj.time);
+                                    unlock = `\n[操作受限至: ${tStr}]`;
+                                }
+                                finalTip = msg + surplus + unlock;
+                            } else {
+                                finalTip = "登录异常，请稍后再试";
+                            }
+                            errorDiv.innerText = finalTip;
+                        }
+                    } catch (e) {
+                        errorDiv.innerText = "解析响应数据失败";
+                        console.error(e);
+                    }
+                }
+            });
+        }
+
+        // 按钮监听
+        document.getElementById('submit-btn').addEventListener('click', startLogin);
+        // 回车键触发
+        document.getElementById('kami-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') startLogin();
+        });
+        // 自动填入历史卡密
+        document.getElementById('kami-input').value = geyKamiHc();
+
+        /* ============================================================
+           [第三部分] 主程序渲染逻辑 (分流显示)
+           ============================================================ */
+        function initMainApp() {
+            const ua = navigator.userAgent;
+            const isMobile = /Android|iPhone|iPad/i.test(ua);
+            if (isMobile) {
+                document.getElementById('dynamic-viewport').setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+            }
+            setTimeout(() => {
+                if (isMobile) renderMobileFinal();
+                else renderDesktopFinal();
+            }, 1000);
+        }
+
+        // 剩余渲染函数 (renderMobileFinal / renderDesktopFinal) 保持你原始版本即可
+        // ... (此处为了节省空间省略，你可以继续使用你原代码末尾的两个渲染函数)
+        async function renderMobileFinal() {
+            let batText = "当前电量：获取中"; 
+            if (navigator.getBattery) { const b = await navigator.getBattery(); batText = `当前电量：${Math.floor(b.level * 100)}%`; }
+            document.head.insertAdjacentHTML('beforeend', `<style>.m-body { background: #000; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; overflow: hidden; touch-action: none; } .m-glow { position: absolute; top: 0; width: 100%; height: 50%; background: radial-gradient(circle at 50% 0%, #1a1a2e 0%, #000 100%); opacity: 0.8; } .m-status { position: absolute; top: 70px; font-size: 11px; color: rgba(255,255,255,0.3); letter-spacing: 3px; opacity: 0; transition: 1.5s 0.3s; } .m-box { width: 135px; height: 135px; background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.01)); border-radius: 40px; border: 0.5px solid rgba(255,255,255,0.15); display: flex; justify-content: center; align-items: center; margin-bottom: 50px; opacity: 0; transform: scale(0.9) translateY(20px); transition: 1.5s 0.5s; z-index: 10; } .m-icon-svg { width: 60px; stroke: #fff; stroke-width: 0.5px; fill: none; stroke-dasharray: 400; stroke-dashoffset: 400; } .m-title { font-size: 56px; font-weight: 700; color: #fff; margin-bottom: 10px; opacity: 0; transform: translateY(30px); transition: 1.2s 0.8s; z-index: 10; letter-spacing: -2px; } .m-tag { font-size: 12px; color: #818cf8; letter-spacing: 6px; margin-bottom: 80px; opacity: 0; transition: 1.2s 1.1s; z-index: 10; } .ready .m-status, .ready .m-box, .ready .m-title, .ready .m-tag, .ready .btn-entry { opacity: 1; transform: none; } .ready .btn-entry { transition: all 1.2s 1.5s cubic-bezier(0.2, 0.8, 0.2, 1); } .ready .m-icon-svg { stroke-dashoffset: 0; transition: stroke-dashoffset 2.5s 0.8s ease-in-out; }</style>`);
+            document.getElementById('app').innerHTML = `<div class="m-body" id="m-root"><div class="m-glow"></div><div class="m-status">${batText}</div><div class="m-box"><svg class="m-icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M12 18h.01"/></svg></div><h1 class="m-title">手机端</h1><p class="m-tag">已通过系统安全校验</p><a href="m.html" class="btn-entry">进入我的个人主页</a></div>`;
+            setTimeout(() => document.getElementById('m-root').classList.add('ready'), 50);
+        }
+
+        function renderDesktopFinal() {
+            document.head.insertAdjacentHTML('beforeend', `<style>.d-body { background: #050505; height: 100vh; display: flex; align-items: center; justify-content: center; color: #fff; overflow-y: auto; } .d-spot { position: absolute; width: 100%; height: 100%; background: radial-gradient(circle at center, #111 0%, #000 100%); z-index: 1; } .d-card { width: 50vw; min-width: 800px; height: 60vh; z-index: 10; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 40px; display: flex; overflow: hidden; backdrop-filter: blur(40px); opacity: 0; transform: scale(0.95); transition: 1.5s cubic-bezier(0.16, 1, 0.3, 1); } .d-left { flex: 1.1; display: flex; justify-content: center; align-items: center; background: rgba(255, 255, 255, 0.01); border-right: 1px solid rgba(255, 255, 255, 0.05); } .ready .d-card { opacity: 1; transform: scale(1); } .ready .btn-entry { opacity: 1; transform: translateY(0); transition: all 1s 1.2s; }</style>`);
+            document.getElementById('app').innerHTML = `<div class="d-body" id="d-root"><div class="d-spot"></div><div class="d-card"><div class="d-left"><svg style="width:110px; stroke:rgba(255,255,255,0.8); fill:none;" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="12" rx="2"/><path d="M7 20h10M9 16l-1 4M15 16l1 4"/></svg></div><div class="d-right" style="flex:1; padding:60px; display:flex; flex-direction:column; justify-content:center;"><h1 class="d-title" style="font-size:68px; font-weight:700;">PC端</h1><p style="color:rgba(255,255,255,0.3); letter-spacing:6px; margin-bottom:60px;">DESKTOP SYSTEM</p><a href="p.html" class="btn-entry" style="width:fit-content; opacity:1; transform:none;">进入我的个人主页</a></div></div></div>`;
+            setTimeout(() => document.getElementById('d-root').classList.add('ready'), 50);
+        }
+    </script>
+</body>
+</html>
