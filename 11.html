@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>生日</title>
+    <style>
+        :root {
+            --背景色: #ffffff;
+            --强调色: #007AFF;
+            --警告色: #FF3B30;
+            --一级文字: #000000;
+            --二级文字: #48484a;
+            --三级文字: #8e8e93;
+            --边框色: rgba(0,0,0,0.08);
+            --寿星背景: linear-gradient(135deg, #ffffff 0%, #f0f7ff 100%);
+            --弹性曲线: cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+        body {
+            background: #fbfbfd;
+            font-family: -apple-system, "SF Pro Text", "PingFang SC", "Hiragino Sans GB", sans-serif;
+            color: var(--一级文字);
+        }
+
+        .主容器 {
+            max-width: 480px;
+            margin: 0 auto;
+            padding: calc(40px + env(safe-area-inset-top)) 24px calc(120px + env(safe-area-inset-bottom));
+        }
+
+        /* --- 核心视窗 (Hero Section) --- */
+        .核心视窗 {
+            background: var(--背景色);
+            border-radius: 40px;
+            padding: 45px 30px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.05), 0 0 0 1px var(--边框色);
+            text-align: center;
+            margin-bottom: 45px;
+            animation: 载入 0.8s var(--弹性曲线) both;
+        }
+
+        @keyframes 载入 { from { opacity: 0; transform: translateY(25px); } to { opacity: 1; transform: translateY(0); } }
+
+        .状态标识 {
+            font-size: 12px; font-weight: 800; color: var(--警告色);
+            background: rgba(255, 59, 48, 0.08);
+            padding: 6px 14px; border-radius: 10px; margin-bottom: 25px;
+            display: inline-block; letter-spacing: 2px;
+        }
+
+        /* 寿星姓名组：强制垂直堆叠 */
+        .姓名展示组 {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .姓名条目 {
+            font-size: 56px; 
+            font-weight: 900; 
+            letter-spacing: -3px; 
+            line-height: 1.1;
+            width: 100%;
+            background: linear-gradient(180deg, var(--一级文字) 30%, var(--强调色) 100%);
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 8px 12px rgba(0,122,255,0.12));
+        }
+
+        .主描述 { font-size: 18px; font-weight: 600; color: var(--二级文字); margin-bottom: 35px; }
+
+        .参数矩阵 {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            border-top: 1.5px solid #f2f2f7; padding-top: 30px; gap: 10px;
+        }
+        .参数单元 { display: flex; flex-direction: column; gap: 6px; }
+        .单元标题 { font-size: 11px; font-weight: 800; color: var(--三级文字); letter-spacing: 1px; }
+        .单元数值 { font-size: 16px; font-weight: 800; color: var(--一级文字); font-family: "SF Mono", monospace; }
+
+        /* --- 节点队列 (List Section) --- */
+        .序列标题 { font-size: 14px; font-weight: 800; color: var(--三级文字); margin: 0 0 18px 10px; letter-spacing: 1px; }
+
+        .条目 {
+            background: var(--背景色);
+            border-radius: 28px; padding: 22px;
+            margin-bottom: 14px;
+            display: flex; align-items: center;
+            border: 1px solid var(--边框色);
+            transition: all 0.4s var(--弹性曲线);
+        }
+
+        .条目.寿星激活 {
+            background: var(--寿星背景);
+            border: 2px solid rgba(0, 122, 255, 0.4);
+            box-shadow: 0 15px 35px rgba(0, 122, 255, 0.1);
+            transform: scale(1.03);
+            z-index: 2;
+        }
+
+        .天数框 {
+            width: 58px; height: 58px; background: #f2f2f7; border-radius: 18px;
+            margin-right: 18px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; flex-shrink: 0;
+        }
+        .条目.寿星激活 .天数框 { background: var(--强调色); }
+        .天数 { font-size: 24px; font-weight: 800; color: var(--强调色); font-family: "SF Mono", monospace; }
+        .条目.寿星激活 .天数 { color: #ffffff; }
+        .单位 { font-size: 9px; font-weight: 800; color: var(--三级文字); }
+        .条目.寿星激活 .单位 { color: rgba(255,255,255,0.9); }
+
+        .内容区 { flex: 1; overflow: hidden; }
+        .名字行 { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+        .名字 { font-size: 19px; font-weight: 800; color: var(--一级文字); }
+        
+        .条目属性 { 
+            font-size: 13px; color: var(--三级文字); font-weight: 700; 
+            display: flex; gap: 15px; font-family: "SF Mono", monospace; 
+        }
+
+        /* --- 悬浮采集按钮 --- */
+        .采集按钮 {
+            position: fixed;
+            bottom: calc(30px + env(safe-area-inset-bottom));
+            right: 24px;
+            background: rgba(0, 122, 255, 0.9);
+            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
+            color: white;
+            padding: 14px 24px;
+            border-radius: 100px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 15px 35px rgba(0, 122, 255, 0.3);
+            text-decoration: none;
+            z-index: 1000;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s var(--弹性曲线);
+        }
+
+        .采集按钮:active { transform: scale(0.92) translateY(5px); }
+        .采集文字 { font-size: 15px; font-weight: 800; letter-spacing: 1px; }
+
+    </style>
+</head>
+<body>
+
+    <div class="主容器">
+        <div id="挂载核心"></div>
+        <h3 class="序列标题">时间节点队列</h3>
+        <div id="挂载队列"></div>
+    </div>
+
+    <a href="https://wj.qq.com/s2/25675350/49c6/" target="_blank" class="采集按钮">
+        <span style="font-size: 22px; font-weight: 300;">+</span>
+        <span class="采集文字">信息采集</span>
+    </a>
+
+    <script>
+        const 数据源 = [
+        { 姓名: "张茹雪", 生日: "07-22" },
+        { 姓名: "目前信息量不足 显示仅有数据", 生日: "10-26" },
+        ];
+
+        function 算星座(日期) {
+            const [m, d] = 日期.split('-').map(Number);
+            const 座 = ["摩羯", "水瓶", "双鱼", "白羊", "金牛", "双子", "巨蟹", "狮子", "处女", "天秤", "天蝎", "射手", "摩羯"];
+            const 阈值 = [20, 19, 21, 20, 21, 22, 23, 23, 23, 24, 23, 22];
+            return 座[d < 阈值[m - 1] ? m - 1 : m] + "座";
+        }
+
+        function 算天数(日期串) {
+            const 今天 = new Date();
+            const [m, d] = 日期串.split('-').map(Number);
+            let 目标 = new Date(今天.getFullYear(), m - 1, d);
+            if (目标 < 今天.setHours(0,0,0,0)) 目标.setFullYear(今天.getFullYear() + 1);
+            return Math.ceil((目标 - 今天) / (1000 * 60 * 60 * 24));
+        }
+
+        function 渲染() {
+            const 核心区 = document.getElementById('挂载核心');
+            const 队列区 = document.getElementById('挂载队列');
+            
+            const 处理数据 = 数据源.map(d => ({
+                ...d,
+                距离: 算天数(d.生日),
+                星座: 算星座(d.生日),
+                斜杠生日: d.生日.replace('-', '/')
+            })).sort((a, b) => a.距离 - b.距离);
+
+            // 1. 逻辑优化：查找当前最近的生日天数
+            const 最近天数 = 处理数据[0].距离;
+            // 2. 逻辑优化：找出所有符合这个最近天数的同学（无论是寿星还是待机）
+            const 核心展示组 = 处理数据.filter(p => p.距离 === 最近天数);
+            
+            const 是真正寿星 = 最近天数 === 0 || 最近天数 === 365;
+
+            // 英雄框渲染
+            核心区.innerHTML = `
+                <div class="核心视窗">
+                    <span class="状态标识" style="${!是真正寿星 ? 'color:var(--三级文字); background:#f2f2f7;' : ''}">
+                        ${是真正寿星 ? '今日寿星' : '下一次的寿星'}
+                    </span>
+                    <div class="姓名展示组">
+                        ${核心展示组.map(s => `<div class="姓名条目" style="${!是真正寿星 ? 'background:var(--一级文字); -webkit-background-clip:text;' : ''}">${s.姓名}</div>`).join('')}
+                    </div>
+                    <p class="主描述">${是真正寿星 ? '生日快乐' : '距离下个生日节点还有 ' + 最近天数 + ' 天'}</p>
+                    <div class="参数矩阵">
+                        <div class="参数单元"><span class="单元标题">日期</span><span class="单元数值">${核心展示组[0].斜杠生日}</span></div>
+                        <div class="参数单元"><span class="单元标题">星象</span><span class="单元数值">${核心展示组[0].星座}</span></div>
+                        <div class="参数单元"><span class="单元标题">状态</span><span class="单元数值" style="${是真正寿星 ? 'color:var(--警告色)' : ''}">${是真正寿星 ? '寿星' : '待机'}</span></div>
+                    </div>
+                </div>
+            `;
+
+            // 队列渲染
+            处理数据.forEach(p => {
+                const 是寿星 = p.距离 === 0 || p.距离 === 365;
+                const 节点 = document.createElement('div');
+                节点.className = `条目 ${是寿星 ? '寿星激活' : ''}`;
+                节点.innerHTML = `
+                    <div class="天数框">
+                        <span class="天数">${是寿星 ? '🎂' : p.距离}</span>
+                        <span class="单位">${是寿星 ? '今日' : '天后'}</span>
+                    </div>
+                    <div class="内容区">
+                        <div class="名字行">
+                            <span class="名字">${p.姓名}</span>
+                            <span style="font-size:10px; font-weight:800; background:var(--警告色); color:#fff; padding:3px 10px; border-radius:8px; display:${是寿星?'block':'none'}">寿星</span>
+                        </div>
+                        <div class="条目属性">
+                            <span>${p.斜杠生日}</span>
+                            <span>${p.星座}</span>
+                            <span>${是寿星 ? '最高权重' : '常规'}</span>
+                        </div>
+                    </div>
+                `;
+                队列区.appendChild(节点);
+            });
+        }
+
+        window.onload = 渲染;
+    </script>
+</body>
+</html>
